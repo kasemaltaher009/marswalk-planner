@@ -345,14 +345,15 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     s.renderOrder = 10;
     return s;
   }
-  // Overview: big discs on 70 m poles. Astronaut view: small badges just above eye height that
+  const STAKE_M = 2;                 // astronaut view: badge height and the thin stake under the camera pin
+  // Overview: big discs on 70 m poles. Astronaut view: small badges about head height that
   // keep a fixed size on screen (~3% of its height), so a nearby one never blocks the view.
   function sizeLabel(s) {
     s.material.sizeAttenuation = !pov;
     s.material.needsUpdate = true;
     const k = pov ? 0.04 : 48 * S;
     s.scale.set(k, k, 1);
-    s.position.y = pov ? 6 : 95 * S;
+    s.position.y = pov ? STAKE_M : 95 * S;
   }
   /** A badge on a 70 m pole at grid cell idx. In the astronaut view the pole is hidden (it could
    *  stand right in front of the eye), unless `stake` asks for a thin one, like a pin in the ground. */
@@ -364,8 +365,8 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     pole.visible = !pov;
     g.add(pole);
     if (stake) {
-      const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 6, 6), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
-      pin.position.y = 3;
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, STAKE_M, 6), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+      pin.position.y = STAKE_M / 2;
       pin.userData.stake = true;
       pin.visible = pov;
       g.add(pin);
