@@ -1,0 +1,46 @@
+{
+ "bounds": {
+  "north": -4.783823487854712,
+  "south": -4.868176512145288,
+  "west": 137.34682348785475,
+  "east": 137.43117651214533
+ },
+ "center": {
+  "lat": -4.826,
+  "lon": 137.389
+ },
+ "size_m": 5000,
+ "radiation_mSv_per_day": 0.64,
+ "sol_hours": 24.66,
+ "slope_classes_deg": {
+  "easy": 10,
+  "hard": 15,
+  "blocked": 25
+ },
+ "overlays": [
+  "slope.png",
+  "ground.png",
+  "hillshade.png",
+  "photo.jpg"
+ ],
+ "context": {
+  "size_m": 30000,
+  "step_m": 50,
+  "points": 601,
+  "elev_base_m": -4626,
+  "elev_step_m": 0.1,
+  "ground_rgb": [
+   117,
+   78,
+   55
+  ]
+ },
+ "globe": {
+  "region": {
+   "west": 133.59375,
+   "east": 142.03125,
+   "north": 0.0,
+   "south": -8.4375
+  }
+ }
+}

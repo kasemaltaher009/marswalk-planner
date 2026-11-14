@@ -1,0 +1,381 @@
+/* MarsWalk Planner — EVA console theme.
+   Colour roles: gold = brand + science targets, cyan = route + live telemetry,
+   green / orange / red = go / caution / no-go (nothing else uses them). */
+:root {
+  --basalt: #1b1f24;      /* page */
+  --panel: #22272d;       /* rails */
+  --raised: #2b3138;      /* inputs, rows */
+  --line: #3a414a;
+  --text: #ebe7de;
+  --muted: #a0a7af;
+  --gold: #d9b24c;        /* visor gold */
+  --cyan: #62d6e8;        /* telemetry */
+  --go: #4cc38a;
+  --caution: #f08c3a;
+  --nogo: #ef5350;
+  --sky: #c99f78;         /* Mars daytime sky, used in 3D */
+
+  --wide: 100%;
+  --semi: 87.5%;
+  --cond: 75%;
+  font-family: "Saira", system-ui, sans-serif;
+  font-size: 15px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--basalt); color: var(--text);
+  display: flex; flex-direction: column; line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+h1, h2, h3 { font-stretch: var(--semi); margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 24px;
+  padding: 10px 18px; background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.topctl { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.mark { width: 30px; height: 30px; color: var(--gold); flex: none; }
+.brand h1 { font-size: 22px; font-weight: 700; font-stretch: var(--cond); line-height: 1.1; }
+.brand p { margin: 0; color: var(--muted); font-size: 13px; }
+.status { margin: 0; color: var(--muted); font-size: 14px; text-align: right; }
+.status.error { color: var(--nogo); }
+
+.viewswitch, .seg { display: inline-flex; background: var(--basalt); border: 1px solid var(--line); border-radius: 6px; padding: 2px; }
+.viewswitch button, .seg button {
+  border: 0; background: none; padding: 5px 14px; border-radius: 4px; cursor: pointer; color: var(--muted);
+  font-stretch: var(--semi); font-weight: 600;
+}
+.viewswitch button[aria-pressed="true"], .seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); }
+.panels-btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--basalt); color: var(--muted); cursor: pointer;
+  font-stretch: var(--semi); font-weight: 600; white-space: nowrap;
+}
+.panels-btn:hover { color: var(--text); border-color: var(--muted); }
+.panels-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+
+/* ---------- layout ---------- */
+.layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px 1fr 370px; }
+.rail { background: var(--panel); overflow-y: auto; }
+.rail-left { border-right: 1px solid var(--line); }
+.rail-right { border-left: 1px solid var(--line); }
+.rail section { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.rail h2 { font-size: 17px; font-weight: 650; margin-bottom: 10px; }
+.muted { color: var(--muted); font-weight: 400; }
+.hint { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+
+/* ---------- left rail controls ---------- */
+.row { display: flex; gap: 8px; margin: 10px 0; }
+.row button, .primary {
+  flex: 1; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--raised); cursor: pointer;
+}
+.row button:hover:not(:disabled) { border-color: var(--muted); }
+button:disabled { opacity: .4; cursor: default; }
+.check { display: flex; align-items: center; gap: 8px; margin: 6px 0; cursor: pointer; font-size: 14px; }
+input[type=checkbox], input[type=range] { accent-color: var(--cyan); }
+.field { margin-bottom: 12px; }
+.field label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 4px; }
+input[type=number], input[type=time], select {
+  width: 100%; padding: 6px 9px; border-radius: 6px; border: 1px solid var(--line); background: var(--raised);
+}
+input[type=range] { width: 100%; }
+.range-ends { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin: -2px 0 8px; }
+
+.points { list-style: none; margin: 0; padding: 0; }
+.points li {
+  display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px;
+}
+.points li:last-child { border-bottom: 0; }
+.points .sub { color: var(--muted); margin-left: auto; font-size: 13px; }
+.tag {
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  font-weight: 700; font-size: 13px; color: var(--basalt);
+}
+.tag.start, .pin.start { background: var(--go); }
+.tag.target, .pin.target { background: var(--gold); }
+
+/* ---------- stage (map / 3D) ---------- */
+.stage { position: relative; min-height: 0; overflow: hidden; }
+#map, #view3d { position: absolute; inset: 0; }
+#map { background: #3b2a20; }
+#view3d { background: var(--sky); cursor: grab; }
+#view3d:active { cursor: grabbing; }
+#view3d canvas { display: block; }
+#view3d canvas:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
+/* Mars globe fly-in: the dusty haze between globe and terrain, and the globe / terrain button */
+.haze3d { position: absolute; inset: 0; background: #c99f78; opacity: 0; pointer-events: none; }
+.globe-btn {
+  position: absolute; top: 12px; right: 12px; z-index: 650; padding: 6px 12px; border-radius: 6px;
+  border: 1px solid var(--line); background: rgba(27, 31, 36, .9); color: var(--text); cursor: pointer;
+  font-stretch: var(--semi); font-weight: 600; white-space: nowrap;
+}
+.globe-btn:hover { border-color: var(--muted); }
+.globe-btn:disabled { opacity: .55; cursor: default; }
+.stage[data-view="3d"] .toolbar { right: 190px; }   /* the layer buttons wrap before the globe button */
+
+.toolbar {
+  position: absolute; top: 12px; left: 12px; right: 70px; z-index: 600; pointer-events: none;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start;
+}
+.toolbar > * { pointer-events: auto; }
+.toolbar .seg, .chips { background: rgba(27, 31, 36, .9); }
+.chips { display: inline-flex; gap: 2px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; }
+.chips button {
+  border: 0; background: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; color: var(--muted);
+  font-stretch: var(--semi); font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+}
+.chips button::before { content: ""; width: 8px; height: 8px; border-radius: 2px; border: 1.5px solid currentColor; }
+.chips button[aria-pressed="true"] { color: var(--text); }
+.chips button[aria-pressed="true"]::before { background: var(--cyan); border-color: var(--cyan); }
+/* legends: one small column flush against the stage's left edge, under the layer buttons */
+.legends {
+  flex-basis: 100%; margin-left: -12px; pointer-events: none;
+  display: grid; grid-template-columns: max-content; justify-content: start; gap: 3px;
+}
+.legend {
+  display: flex; flex-direction: column; gap: 1px; background: rgba(27, 31, 36, .85);
+  border-radius: 0 6px 6px 0; padding: 4px 8px; font-size: 11px; line-height: 1.3; color: var(--text);
+}
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+.legend i.dot { border-radius: 50%; border: 1px solid #fff; }
+
+.readout {
+  position: absolute; left: 12px; bottom: 34px; z-index: 600; pointer-events: none;
+  background: rgba(27, 31, 36, .9); border-radius: 6px; padding: 5px 10px; font-size: 13px;
+}
+.readout small { display: block; color: var(--muted); font-size: 12px; }
+
+/* Leaflet restyle */
+.leaflet-container { font: inherit; }
+.leaflet-bar a { background: var(--panel); color: var(--text); border-color: var(--line); }
+.leaflet-bar a:hover { background: var(--raised); }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--panel); color: var(--text); border-radius: 8px; }
+.leaflet-popup-content { margin: 14px 16px; font-size: 14px; line-height: 1.45; }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+.leaflet-control-scale-line { background: rgba(27, 31, 36, .85); color: var(--text); border-color: var(--text); }
+.leaflet-control-attribution { background: rgba(27, 31, 36, .8) !important; color: var(--muted); font-size: 12px; }
+.leaflet-control-attribution a { color: var(--muted); }
+.leaflet-tooltip { background: var(--panel); color: var(--text); border-color: var(--line); font-size: 13px; }
+
+.pin {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 800; font-size: 14px; color: var(--basalt); border: 2px solid #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, .55);
+}
+.astro { width: 22px; height: 22px; position: relative; }
+.astro::before, .astro::after { content: ""; position: absolute; inset: 0; border-radius: 50%; }
+.astro::before { background: var(--cyan); border: 3px solid #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, .55); }
+.astro::after { border: 2px solid var(--cyan); animation: ping 1.6s ease-out infinite; }
+@keyframes ping { from { transform: scale(1); opacity: .9; } to { transform: scale(2.6); opacity: 0; } }
+
+.wp-popup { width: 264px; }
+.wp-popup h4 { margin: 0 0 4px; font-size: 16px; font-stretch: var(--semi); }
+.wp-popup p { margin: 4px 0; color: var(--muted); font-size: 13px; }
+.wp-popup a { color: var(--cyan); }
+.wp-popup button { margin-top: 8px; width: 100%; padding: 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--raised); cursor: pointer; }
+/* fixed height, so the popup doesn't grow after Leaflet has panned it into view */
+.wp-popup .photos { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; height: 300px; overflow-y: auto; align-content: start; margin-top: 6px; }
+.wp-popup .photos > p { grid-column: 1 / -1; }
+.wp-popup .photos a:first-child { grid-column: 1 / -1; }
+.wp-popup img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; display: block; background: #000; }
+
+/* ---------- helmet display (playback) ---------- */
+.hud {
+  position: absolute; left: 12px; bottom: 34px; z-index: 700; width: 250px;
+  background: rgba(20, 24, 29, .88); border: 1px solid rgba(98, 214, 232, .45); border-radius: 10px;
+  padding: 12px 14px; color: var(--text); backdrop-filter: blur(4px);
+}
+.hud-clock { display: flex; align-items: baseline; gap: 8px; }
+.hud-clock span { font-size: 40px; font-weight: 700; font-stretch: var(--cond); color: var(--cyan); line-height: 1; }
+.hud-clock small { color: var(--muted); font-size: 13px; }
+.hud-status { margin: 6px 0 10px; font-weight: 600; font-stretch: var(--semi); }
+.hud-suit .bar { height: 6px; background: var(--raised); border-radius: 3px; overflow: hidden; }
+.hud-suit .bar i { display: block; height: 100%; background: var(--go); width: 100%; }
+.hud-suit .bar i.caution { background: var(--caution); }
+.hud-suit .bar i.nogo { background: var(--nogo); }
+.hud-suit span { font-size: 13px; color: var(--muted); }
+.hud-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 10px 0 0; }
+.hud-grid dt { font-size: 12px; color: var(--muted); }
+.hud-grid dd { margin: 0; font-size: 17px; font-weight: 600; font-stretch: var(--semi); }
+.hud-photo { margin: 12px 0 0; position: relative; }
+.hud-photo img, .hud-photo canvas.full { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; display: block; background: #000; }
+/* orbital close-up tucked into the corner of Curiosity's photo */
+/* page through all of Curiosity's photos from a stop */
+.viewer { position: relative; }
+.viewer button {
+  position: absolute; bottom: 6px; width: 30px; height: 30px; border-radius: 50%; border: 0;
+  display: grid; place-items: center; background: rgba(20, 24, 29, .8); color: #fff; cursor: pointer;
+}
+.viewer button:hover { background: rgba(20, 24, 29, .95); color: var(--cyan); }
+.viewer .prev { left: 6px; }
+.viewer .next { right: 6px; }
+.viewer svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.viewer .count {
+  position: absolute; bottom: 10px; left: 50%; translate: -50% 0; padding: 1px 8px; border-radius: 4px;
+  background: rgba(20, 24, 29, .8); font-size: 12px; white-space: nowrap;
+}
+.hud-photo figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.player {
+  position: absolute; right: 12px; bottom: 34px; z-index: 700; width: min(520px, calc(100% - 24px));
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(27, 31, 36, .92); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+}
+.play {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: 0;
+  background: var(--cyan); color: var(--basalt); font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.play svg { width: 14px; height: 14px; }
+.player #scrub { flex: 1; min-width: 60px; }
+.speed { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.speed input { width: 76px; }
+.speed output { min-width: 3.2em; color: var(--text); font-weight: 600; }
+.player .check { margin: 0; }
+.end {
+  padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--raised);
+  color: var(--text); font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.end:hover { border-color: var(--muted); }
+
+/* ---------- side panels hidden (button in the top bar, or during a walk) ---------- */
+body.panels-hidden .rail { display: none; }
+/* the brand and status line go too; the view buttons and Show panels float in the top-right corner */
+body.panels-hidden .topbar { display: contents; }
+body.panels-hidden .brand, body.panels-hidden .status { display: none; }
+body.panels-hidden .topctl { position: fixed; top: 12px; right: 12px; z-index: 1100; gap: 8px; }
+body.panels-hidden .topctl > * { background: rgba(27, 31, 36, .9); }
+body.panels-hidden .leaflet-top.leaflet-right { top: 46px; }
+body.panels-hidden .toolbar { right: 440px; }   /* keep the layer buttons clear of them */
+body.panels-hidden .stage[data-view="3d"] .toolbar { right: 440px; }
+body.panels-hidden .globe-btn { top: 60px; }        /* under the floating view buttons */
+body.panels-hidden .layout { grid-template-columns: 1fr; }
+body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
+
+/* ---------- right rail: go / no-go ---------- */
+.verdict-box { --tone: var(--muted); border-top: 4px solid var(--tone); }
+.verdict-box.go { --tone: var(--go); }
+.verdict-box.caution { --tone: var(--caution); }
+.verdict-box.nogo { --tone: var(--nogo); }
+.verdict { margin: 0; font-size: 56px; font-weight: 800; font-stretch: var(--cond); line-height: 1; color: var(--tone); }
+.verdict-why { margin: 6px 0 12px; color: var(--text); }
+.poll { list-style: none; margin: 0; padding: 0; }
+.poll li { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.poll .sys { font-weight: 600; font-stretch: var(--semi); }
+.poll .call { font-weight: 800; font-stretch: var(--cond); font-size: 17px; text-align: right; }
+.poll .go .call { color: var(--go); }
+.poll .caution .call { color: var(--caution); }
+.poll .nogo .call { color: var(--nogo); }
+.poll small { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
+
+.stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px 10px; margin: 0; }
+.stats dt { font-size: 13px; color: var(--muted); }
+.stats dd { margin: 0; font-size: 21px; font-weight: 650; font-stretch: var(--semi); }
+/* legs of the walk, in order, with the colour each one has on the map */
+.legs { list-style: none; margin: 14px 0 0; padding: 0; font-size: 14px; }
+.legs li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.legs i { width: 18px; height: 4px; border-radius: 2px; flex: none; }
+.legs span { margin-left: auto; color: var(--muted); }
+
+/* direction arrows printed on the route lanes */
+.chev i {
+  display: block; width: 12px; height: 12px; background: #14181c;
+  clip-path: polygon(15% 5%, 95% 50%, 15% 95%, 40% 50%);
+}
+
+.compare { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 8px; }
+.compare th, .compare td { text-align: right; padding: 5px 0 5px 8px; border-bottom: 1px solid var(--line); }
+.compare th:first-child, .compare td:first-child { text-align: left; padding-left: 0; color: var(--muted); font-weight: 400; }
+.compare thead th { font-stretch: var(--semi); font-weight: 650; }
+.compare thead th:nth-child(2) { color: var(--cyan); }
+.compare thead th:nth-child(3) { color: var(--gold); }
+.compare td.better { color: var(--text); font-weight: 650; }
+.compare td { color: var(--muted); }
+
+.chartbox { position: relative; height: 170px; }
+.wx { display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; margin: 0 0 10px; font-size: 14px; }
+.wx dt { color: var(--muted); }
+.wx dd { margin: 0; font-weight: 600; }
+.credits { padding: 14px 18px; margin: 0; color: var(--muted); font-size: 12.5px; }
+
+/* ---------- mission briefing ---------- */
+.briefing {
+  position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 16px;
+  background: rgba(20, 23, 27, .72); backdrop-filter: blur(6px);
+}
+.briefing.leaving { opacity: 0; transition: opacity .35s ease; }
+.brief-card {
+  width: min(620px, 100%); max-height: 100%; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--gold); border-radius: 10px;
+  padding: 28px 30px;
+}
+.brief-kicker { margin: 0 0 4px; color: var(--gold); font-weight: 600; font-stretch: var(--semi); }
+.brief-card h2 { font-size: 40px; font-weight: 750; font-stretch: var(--cond); line-height: 1.05; margin-bottom: 12px; }
+.brief-card > p { max-width: 62ch; }
+.brief-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin: 18px 0; }
+.brief-facts dt { color: var(--muted); font-size: 13px; }
+.brief-facts dd { margin: 0; font-weight: 600; }
+.brief-steps { margin: 0 0 22px; padding-left: 22px; }
+.brief-steps li { margin: 3px 0; }
+.primary { background: var(--gold); color: var(--basalt); border: 0; font-weight: 700; padding: 10px 22px; flex: none; }
+
+/* ---------- route draw-in (only when motion is OK) ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .astro::after { animation: none; }
+  .briefing.leaving { transition: none; }
+}
+
+/* ---------- narrow screens: stack ---------- */
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 260px 1fr 320px; }
+  .verdict { font-size: 46px; }
+}
+@media (max-width: 900px) {
+  body { display: block; height: auto; }
+  .topbar { grid-template-columns: 1fr auto; }
+  .status { grid-column: 1 / -1; text-align: left; }
+  .layout { display: flex; flex-direction: column; }
+  .stage { order: -1; height: 72vh; }
+  .rail { border: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  body.panels-hidden .toolbar { top: 60px; right: 56px; }   /* too narrow to sit beside them */
+  body.panels-hidden .stage[data-view="3d"] .toolbar { right: 190px; }
+  body.panels-hidden .leaflet-top.leaflet-right { top: 50px; }
+}
+@media (max-width: 600px) {
+  .brand p { display: none; }
+  .brand h1 { font-size: 20px; }
+  .topbar { grid-template-columns: 1fr; gap: 10px; }
+  .topctl { justify-self: start; }
+  .viewswitch button { white-space: nowrap; padding: 5px 12px; }
+  .toolbar { right: 56px; gap: 6px; }
+  .chips button { padding: 5px 8px; white-space: nowrap; }
+  #legendCuriosity { display: none; }
+  /* helmet display becomes a compact strip above the player */
+  .hud { left: 12px; right: 12px; width: auto; bottom: 86px; padding: 8px 12px; }
+  .hud-clock span { font-size: 28px; }
+  .hud-status { margin: 2px 0 6px; }
+  .hud-grid { grid-template-columns: repeat(3, 1fr); gap: 4px 10px; margin-top: 6px; }
+  .hud-grid dd { font-size: 15px; }
+  .hud-photo { margin-top: 8px; }
+  .hud-photo img, .hud-photo canvas.full { aspect-ratio: auto; height: 120px; }
+  .player .check { display: none; }   /* follow stays on */
+  .speed-name { display: none; }
+  .speed input { width: 60px; }
+}
+
+/* Follow has no use in the astronaut view: the camera is the astronaut */
+.stage[data-view="pov"] .player .check { display: none; }
+
+/* Curiosity's stop dots are map-only, so its legend is too (3D keeps just the drive path) */
+.stage:not([data-view="map"]) #legendCuriosity { display: none; }
+
+/* the map layer buttons mean nothing on the Mars globe */
+.stage[data-globe="true"]:not([data-view="map"]) .toolbar { display: none; }
