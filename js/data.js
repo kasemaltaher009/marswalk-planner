@@ -5,9 +5,11 @@
 import { DATA } from './state.js';
 import { decodeGrid } from './routing/grid.js';
 
+// The small description files (config.json, cost_grid.json) say which data files exist, so the
+// browser must never use an old cached copy after a redeploy: 'no-cache' asks the server each time.
 export async function getJSON(name, optional = false) {
   try {
-    const res = await fetch(DATA + name);
+    const res = await fetch(DATA + name, { cache: 'no-cache' });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return await res.json();
   } catch (err) {
