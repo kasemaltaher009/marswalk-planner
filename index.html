@@ -219,7 +219,11 @@
         <li>Add up to three science targets.</li>
         <li>Read the go/no-go call, then play the walk.</li>
       </ol>
-      <button type="button" class="primary" id="btnBrief">Start planning</button>
+      <div class="brief-load" id="briefLoad">
+        <div class="load-bar"><div class="load-fill" id="loadFill"></div></div>
+        <p class="load-text" id="loadText" role="status" aria-live="polite">Downloading Mars data…</p>
+      </div>
+      <button type="button" class="primary" id="btnBrief" disabled>Loading…</button>
     </div>
   </div>
 

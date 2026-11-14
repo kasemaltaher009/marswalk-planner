@@ -324,6 +324,13 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
 .brief-facts dd { margin: 0; font-weight: 600; }
 .brief-steps { margin: 0 0 22px; padding-left: 22px; }
 .brief-steps li { margin: 3px 0; }
+.brief-load { margin: 0 0 16px; }
+.brief-load[hidden] { display: none; }
+.load-bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.load-fill { height: 100%; width: 0; background: var(--gold); transition: width .2s linear; }
+.load-text { margin: 6px 0 0; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.load-text.error { color: var(--nogo); }
+.primary:disabled { opacity: .55; cursor: progress; }
 .primary { background: var(--gold); color: var(--basalt); border: 0; font-weight: 700; padding: 10px 22px; flex: none; }
 
 /* ---------- route draw-in (only when motion is OK) ---------- */

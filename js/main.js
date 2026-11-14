@@ -31,16 +31,29 @@ import { showView } from './view3dBridge.js';
 
 async function init() {
   setupBriefing();
+  const mb = (b) => (b / 1e6).toFixed(1);
+  const showProgress = ({ loaded, total }) => {
+    const pct = total ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
+    $('loadFill').style.width = `${pct}%`;
+    $('loadText').textContent = total ? `Downloading Mars data… ${mb(loaded)} of ${mb(total)} MB (${pct}%)` : 'Downloading Mars data…';
+  };
   try {
-    const { config, costGrid, weather, curiosity } = await loadAll();
+    const { config, costGrid, weather, curiosity } = await loadAll(showProgress);
     state.config = config;
     state.grid = buildGrid(costGrid, config.bounds);
     state.weather = weather || [];
     state.curiosity = curiosity;
   } catch (err) {
     setStatus(err.message, true);
+    $('loadText').textContent = err.message;
+    $('loadText').classList.add('error');
+    $('btnBrief').textContent = 'Could not load';
     return;
   }
+  $('briefLoad').hidden = true;
+  $('btnBrief').disabled = false;
+  $('btnBrief').textContent = 'Start planning';
+  $('btnBrief').focus();
   const { grid, config } = state;
   setupMap();
   setupControls();
@@ -60,7 +73,6 @@ function setupBriefing() {
     b.classList.add('leaving');
     setTimeout(() => { b.hidden = true; }, 350);
   });
-  $('btnBrief').focus();
 }
 
 // ---------------------------------------------------------------------------

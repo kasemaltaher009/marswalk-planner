@@ -5,7 +5,27 @@
 
 export const BLOCKED = 255;   // cost 255 = too steep / cliff, can't walk there
 
-/** Turn cost_grid.json into typed arrays, and work out the slope of every cell.
+const NO_ELEV = 65535;   // "no data" in cost_grid.bin's elevation part
+
+/** cost_grid.json (header) + the unzipped bytes of cost_grid.bin.gz → {width, height, cell_m,
+ *  cost, elev_dm}, ready for buildGrid. The bytes are W·H cost bytes, then W·H uint16
+ *  little-endian elevations in decimetres above header.elev_base_dm (65535 = no data → -99999,
+ *  as buildGrid expects), each stored as the change from the cell to its left (mod 65536). */
+export function decodeGrid(header, buffer) {
+  const W = header.width, n = W * header.height;
+  if (buffer.byteLength !== n * 3) throw new Error(`cost grid has ${buffer.byteLength} bytes, expected ${n * 3}`);
+  const cost = new Uint8Array(buffer, 0, n);
+  const view = new DataView(buffer, n);
+  const elev_dm = new Int32Array(n);
+  let v = 0;
+  for (let i = 0; i < n; i++) {
+    v = ((i % W === 0 ? 0 : v) + view.getUint16(i * 2, true)) & 0xffff;   // undo the left-neighbour change
+    elev_dm[i] = v === NO_ELEV ? -99999 : header.elev_base_dm + v;
+  }
+  return { ...header, cost, elev_dm };
+}
+
+/** Turn the cost grid (decodeGrid's result, or plain arrays) into typed arrays, and work out the slope of every cell.
  *  `bounds` = {north, south, west, east} of the area (from config.json). */
 export function buildGrid(cg, bounds) {
   const W = cg.width, H = cg.height, cell = cg.cell_m;

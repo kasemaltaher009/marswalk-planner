@@ -9,8 +9,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 
-import { buildGrid, cellAt, rcOf, nearestWalkable, BLOCKED } from '../js/routing/grid.js';
+import { buildGrid, decodeGrid, cellAt, rcOf, nearestWalkable, BLOCKED } from '../js/routing/grid.js';
 import { MinHeap } from '../js/routing/heap.js';
 import { astar, weightTable, weightsFor } from '../js/routing/astar.js';
 import { bestRoute, permutations, routeLegs } from '../js/routing/planner.js';
@@ -221,7 +222,9 @@ test('routeStats: climb, descent, grade, diagonal steps and rough ground', () =>
 const DATA = fileURLToPath(new URL('../data/', import.meta.url));
 test('real cost_grid.json: same paths as before the refactor', { skip: !existsSync(DATA + 'cost_grid.json') && 'no data' }, () => {
   const config = JSON.parse(readFileSync(DATA + 'config.json'));
-  const g = buildGrid(JSON.parse(readFileSync(DATA + 'cost_grid.json')), config.bounds);
+  const header = JSON.parse(readFileSync(DATA + 'cost_grid.json'));
+  const bytes = gunzipSync(readFileSync(DATA + header.bin));
+  const g = buildGrid(decodeGrid(header, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length)), config.bounds);
   const W = g.W;
   assert.equal(g.blockedPct.toFixed(4), '19.7129');
   const expected = [

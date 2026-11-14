@@ -42,5 +42,19 @@
    "north": 0.0,
    "south": -8.4375
   }
+ },
+ "file_bytes": {
+  "context.jpg": 693090,
+  "context_elev.png": 452461,
+  "cost_grid.bin.gz": 1548695,
+  "cost_grid.json": 582,
+  "curiosity.geojson": 492755,
+  "gale_region.jpg": 527550,
+  "ground.png": 344920,
+  "hillshade.png": 6684658,
+  "mars_globe.jpg": 2017169,
+  "photo.jpg": 2434523,
+  "slope.png": 1914860,
+  "weather.json": 1106
  }
 }
