@@ -53,9 +53,9 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   scene.background = new THREE.Color(SKY);
   scene.fog = new THREE.Fog(SKY, FOG.near, FOG.far);
 
-  // from the north, looking south over the area towards the slopes of Mount Sharp
+  // from the south, looking north over the area: north is up and east is right, like the 2D map
   const centreY = heightAt((H - 1) / 2, (W - 1) / 2);   // the camera orbits a point on the ground
-  const HOME = { pos: new THREE.Vector3(-450 * S, centreY + 750 * S, -2500 * S), target: new THREE.Vector3(0, centreY, 0) };
+  const HOME = { pos: new THREE.Vector3(0, centreY + 1900 * S, 1800 * S), target: new THREE.Vector3(0, centreY, 0) };
   const camera = new THREE.PerspectiveCamera(45, 1, 5, 40000 * S);
   camera.position.copy(HOME.pos);
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -519,7 +519,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   function endFlight() { flying = skipping = false; updateGlobeButton(); }
 
   // the terrain camera, high above the area (all haze) and where it was before flying out
-  const HIGH = { pos: new THREE.Vector3(-300 * S, 9000 * S, -1300 * S), target: HOME.target.clone() };
+  const HIGH = { pos: new THREE.Vector3(0, 9000 * S, 1300 * S), target: HOME.target.clone() };
   let back = HOME;
   const ALT_LOW = 1.04, ALT_HIGH = 4.2;    // globe camera distance (Mars radii): over Gale / whole planet
   function moveCamera(from, to, e) {

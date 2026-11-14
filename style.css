@@ -104,7 +104,7 @@ input[type=range] { width: 100%; }
 .tag.target, .pin.target { background: var(--gold); }
 
 /* ---------- stage (map / 3D) ---------- */
-.stage { position: relative; min-height: 0; overflow: hidden; }
+.stage { position: relative; min-height: 0; overflow: hidden; container-type: inline-size; }   /* the helmet display sizes to it */
 #map, #view3d { position: absolute; inset: 0; }
 #map { background: #3b2a20; }
 #view3d { background: var(--sky); cursor: grab; }
@@ -247,15 +247,15 @@ input[type=range] { width: 100%; }
 
 /* ---------- side panels hidden (button in the top bar, or during a walk) ---------- */
 body.panels-hidden .rail { display: none; }
-/* the brand and status line go too; the view buttons and Show panels float in the top-right corner */
+/* The brand and status line go too. Two rows on one left edge, so nothing can overlap at any width:
+   row 1 = view buttons + Show panels (zoom or globe button at the far right),
+   row 2 = base map + layer buttons, legends under them. */
 body.panels-hidden .topbar { display: contents; }
 body.panels-hidden .brand, body.panels-hidden .status { display: none; }
-body.panels-hidden .topctl { position: fixed; top: 12px; right: 12px; z-index: 1100; gap: 8px; }
+body.panels-hidden .topctl { position: fixed; top: 12px; left: 12px; z-index: 1100; gap: 8px; flex-wrap: nowrap; }
 body.panels-hidden .topctl > * { background: rgba(27, 31, 36, .9); }
-body.panels-hidden .leaflet-top.leaflet-right { top: 46px; }
-body.panels-hidden .toolbar { right: 440px; }   /* keep the layer buttons clear of them */
-body.panels-hidden .stage[data-view="3d"] .toolbar { right: 440px; }
-body.panels-hidden .globe-btn { top: 60px; }        /* under the floating view buttons */
+body.panels-hidden .toolbar,
+body.panels-hidden .stage[data-view="3d"] .toolbar { top: 57px; right: 12px; }   /* 12 + 37 row + 8 gap */
 body.panels-hidden .layout { grid-template-columns: 1fr; }
 body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
 
@@ -313,8 +313,10 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
 .briefing.leaving { opacity: 0; transition: opacity .35s ease; }
 .brief-card {
   width: min(620px, 100%); max-height: 100%; overflow-y: auto;
-  background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--gold); border-radius: 10px;
-  padding: 28px 30px;
+  /* gold stripe drawn as a background band, so the rounded corners clip it cleanly */
+  background: linear-gradient(var(--gold), var(--gold)) top / 100% 4px no-repeat, var(--panel);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 31px 30px 28px;
 }
 .brief-kicker { margin: 0 0 4px; color: var(--gold); font-weight: 600; font-stretch: var(--semi); }
 .brief-card h2 { font-size: 40px; font-weight: 750; font-stretch: var(--cond); line-height: 1.05; margin-bottom: 12px; }
@@ -350,11 +352,9 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
   .status { grid-column: 1 / -1; text-align: left; }
   .layout { display: flex; flex-direction: column; }
   .stage { order: -1; height: 72vh; }
+  body.panels-hidden .stage { height: 100vh; height: 100dvh; }   /* walk mode: the view fills the screen */
   .rail { border: 0; border-top: 1px solid var(--line); overflow: visible; }
   .stats { grid-template-columns: 1fr 1fr; }
-  body.panels-hidden .toolbar { top: 60px; right: 56px; }   /* too narrow to sit beside them */
-  body.panels-hidden .stage[data-view="3d"] .toolbar { right: 190px; }
-  body.panels-hidden .leaflet-top.leaflet-right { top: 50px; }
 }
 @media (max-width: 600px) {
   .brand p { display: none; }
@@ -362,20 +362,47 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
   .topbar { grid-template-columns: 1fr; gap: 10px; }
   .topctl { justify-self: start; }
   .viewswitch button { white-space: nowrap; padding: 5px 12px; }
-  .toolbar { right: 56px; gap: 6px; }
+  .toolbar { right: 56px; }
   .chips button { padding: 5px 8px; white-space: nowrap; }
   #legendCuriosity { display: none; }
-  /* helmet display becomes a compact strip above the player */
-  .hud { left: 12px; right: 12px; width: auto; bottom: 86px; padding: 8px 12px; }
-  .hud-clock span { font-size: 28px; }
-  .hud-status { margin: 2px 0 6px; }
-  .hud-grid { grid-template-columns: repeat(3, 1fr); gap: 4px 10px; margin-top: 6px; }
-  .hud-grid dd { font-size: 15px; }
-  .hud-photo { margin-top: 8px; }
-  .hud-photo img, .hud-photo canvas.full { aspect-ratio: auto; height: 120px; }
+  /* panels hidden: row 1 must fit on one line beside the zoom control, so tighter view buttons
+     and an icon-only Show panels (its label stays for screen readers) */
+  body.panels-hidden .viewswitch button { padding: 5px 10px; }
+  body.panels-hidden .panels-btn { padding: 6px 9px; }
+  body.panels-hidden #btnPanelsLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .player .check { display: none; }   /* follow stays on */
   .speed-name { display: none; }
   .speed input { width: 60px; }
+}
+/* View too narrow for the helmet display (250 px, left) beside the player (right), whether the
+   window is small or the side panels take the room: it becomes a low strip above the player,
+   readings on the left and Curiosity's photo beside them, so most of the view stays clear. */
+@container (max-width: 900px) {
+  .hud { left: 12px; right: 12px; width: auto; bottom: 98px; padding: 8px 12px; }
+  .hud:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-content: start; }
+  .hud > :not(.hud-photo) { grid-column: 1; }
+  .hud-clock span { font-size: 26px; }
+  .hud-status { margin: 2px 0 4px; font-size: 14px; }
+  .hud-suit span { font-size: 12px; }
+  .hud-grid { grid-template-columns: repeat(3, 1fr); gap: 2px 10px; margin-top: 4px; }
+  .hud-grid dt { font-size: 11px; }
+  .hud-grid dd { font-size: 14px; }
+  .hud-photo { grid-column: 2; grid-row: 1 / span 4; margin: 0; width: min(42cqw, 300px); }
+  .hud-photo img, .hud-photo canvas.full { aspect-ratio: auto; height: 128px; }
+  .hud-photo figcaption { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: 11px; }
+}
+/* panels hidden and no room for the globe button beside the view buttons: it moves down to the
+   right end of row 2, and the layer buttons wrap before it */
+@container (max-width: 560px) {
+  body.panels-hidden .globe-btn { top: 57px; }
+  body.panels-hidden .stage[data-view="3d"] .toolbar { right: 170px; }
+}
+/* phone width: too narrow side by side, so the photo goes back under the readings, shorter */
+@container (max-width: 480px) {
+  .hud:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
+  .hud-photo { grid-column: 1; grid-row: auto; width: auto; margin-top: 6px; }
+  .hud-photo img, .hud-photo canvas.full { height: 90px; }
+  .player .speed { display: none; }   /* room for End walk; playback keeps its speed */
 }
 
 /* Follow has no use in the astronaut view: the camera is the astronaut */
