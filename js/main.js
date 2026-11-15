@@ -1,4 +1,5 @@
 /* MarsWalk Planner — plans the safest walking route on Mount Sharp.
+ * Code written with help from Claude (Anthropic), an AI coding assistant; reviewed and tested by the team.
  *
  * Flow: load web/data/* → map + layers → user places start + targets
  *       → A* on cost_grid.json for every pair of points → best visiting order
