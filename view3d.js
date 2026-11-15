@@ -8,7 +8,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGlobe } from './globe3d.js';
+import { createGlobe, latLonToVec } from './globe3d.js';
 import { createAstronaut } from './astronaut3d.js';
 
 const EXAGGERATION = 1.5;   // vertical exaggeration so the relief reads at a glance
@@ -540,7 +540,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   globeBtn.addEventListener('click', () => (mode === 'local' ? flyOut() : flyIn()));
 
   function updateGlobeButton() {
-    globeBtn.hidden = !globeOK || pov || mode !== 'local';   // no "Fly to Gale Crater" button on the globe: click Gale itself
+    globeBtn.hidden = !globeOK || pov || flying || mode !== 'local';   // not while flying; no "Fly to Gale Crater" button on the globe: click Gale itself
     globeBtn.textContent = mode === 'local' ? 'Zoom out to Mars' : 'Fly to Gale Crater';
     globeBtn.disabled = flying;
   }
@@ -681,7 +681,8 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     setMode('globe');
     haze.style.opacity = 1;
     await animate(2600, (k) => {
-      globe.pose(globe.siteDir, ALT_LOW * (ALT_HIGH / ALT_LOW) ** easeOut(k));
+      const e = easeOut(k);
+      globe.pose(globe.siteDir.clone().lerp(START_DIR, e), ALT_LOW * (ALT_HIGH / ALT_LOW) ** e);
       haze.style.opacity = Math.max(0, 1 - k / 0.35);
     });
     if (mode === 'globe') globe.controls.enabled = true;
@@ -706,7 +707,11 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     camera.position.copy(back.pos); controls.target.copy(back.target);   // not up in the haze
   }
 
-  /** First opening: start on the globe, Gale Crater in the centre. The user spins it, then clicks
+  // The start globe looks at a point north-west of Gale, so the crater sits off centre and the
+  // fly-in swings the planet round to it.
+  const START_DIR = config?.center ? latLonToVec(config.center.lat + 14, config.center.lon - 24).normalize() : null;
+
+  /** First opening: start on the globe, Gale Crater off centre. The user spins it, then clicks
    *  Gale (or "Fly to Gale Crater") to fly down to the walk. */
   let introDone = false;
   let introPending = true;           // nothing is drawn until we know: globe first, or terrain if it can't load
@@ -720,7 +725,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     updateGlobeButton();
     if (pov || flying) { setMode('local'); return; }   // the astronaut stands on the terrain
     setMode('globe');
-    globe.pose(globe.siteDir, ALT_HIGH);   // Gale Crater in the middle of the screen
+    globe.pose(START_DIR, ALT_HIGH);   // Gale Crater off to the lower right, so the fly-in sweeps across
     globe.controls.enabled = true;
   }
 
