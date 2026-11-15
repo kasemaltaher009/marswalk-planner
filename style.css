@@ -434,6 +434,10 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
 .brief-steps li { margin: 3px 0; }
 .brief-load { margin: 0 0 16px; }
 .brief-load[hidden] { display: none; }
+/* return visits: only the title and the loading bar (main.js closes it once the data is in) */
+.briefing.returning .brief-card { width: min(420px, 100%); padding-bottom: 14px; }
+.briefing.returning .brief-card > :not(h2, .brief-load) { display: none; }
+.briefing.returning .brief-card h2 { font-size: 28px; }
 .load-bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
 .load-fill { height: 100%; width: 0; background: var(--gold); transition: width .2s linear; }
 .load-text { margin: 6px 0 0; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }

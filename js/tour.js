@@ -5,7 +5,8 @@
  *     start, play the walk) and then move on by themselves; a step already done is skipped;
  *     (`needs`: what must stay true meanwhile, e.g. being on the terrain, not the globe);
  *   - info steps (`target` + Next) explain a panel; they're skipped when that panel isn't on screen.
- * The tour starts by itself the first time (after the briefing) and from the Tour button any time.
+ * The tour starts by itself the first time (after the briefing, or once the data is in if the
+ * briefing was already seen) and from the Tour button any time.
  * The card never blocks the app: the dimmed area and ring let clicks through.
  */
 import { state, $, REDUCED_MOTION } from './state.js';

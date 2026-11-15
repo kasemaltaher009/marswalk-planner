@@ -55,7 +55,7 @@ async function init() {
   $('briefLoad').hidden = true;
   $('btnBrief').disabled = false;
   $('btnBrief').textContent = 'Start planning';
-  $('btnBrief').focus();
+  if (!returning) $('btnBrief').focus();
   const { grid, config } = state;
   setupMap();
   setupControls();
@@ -67,15 +67,28 @@ async function init() {
   $('bSize').textContent = `${config.size_m / 1000} × ${config.size_m / 1000} km`;
   setStatus(`Ready. ${grid.blockedPct.toFixed(0)}% of the area is too steep to walk.`);
   showView('3d');   // start on the Mars globe (the 3D view opens there); click Gale Crater to fly down
+  if (returning) closeBriefing();
 }
 
+// The mission briefing is shown in full on the first visit only (remembered in this browser).
+// Later visits get just its title and loading bar, which close by themselves once the data is in.
+const BRIEFING_KEY = 'marswalk.briefingSeen';
+let returning = false;
+try { returning = localStorage.getItem(BRIEFING_KEY) === '1'; } catch { /* private window: full briefing */ }
+
 function setupBriefing() {
+  $('briefing').classList.toggle('returning', returning);
   $('btnBrief').addEventListener('click', () => {
-    const b = $('briefing');
-    if (REDUCED_MOTION) { b.hidden = true; maybeStartTour(); return; }
-    b.classList.add('leaving');
-    setTimeout(() => { b.hidden = true; maybeStartTour(); }, 350);   // first visit: the guided tour
+    try { localStorage.setItem(BRIEFING_KEY, '1'); } catch { /* fine */ }
+    closeBriefing();
   });
+}
+
+function closeBriefing() {
+  const b = $('briefing');
+  if (REDUCED_MOTION) { b.hidden = true; maybeStartTour(); return; }
+  b.classList.add('leaving');
+  setTimeout(() => { b.hidden = true; maybeStartTour(); }, 350);   // first visit: the guided tour
 }
 
 // ---------------------------------------------------------------------------
