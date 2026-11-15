@@ -346,12 +346,14 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     return s;
   }
   const STAKE_M = 2;                 // astronaut view: badge height and the thin stake under the camera pin
-  // Overview: big discs on 70 m poles. Astronaut view: small badges about head height that
-  // keep a fixed size on screen (~3% of its height), so a nearby one never blocks the view.
+  // Overview: big discs on 70 m poles. Astronaut view: badges about head height, sized on screen:
+  // ~3% of its height when far, growing as you walk up to one (closer than POV_GROW_M), capped
+  // at POV_MAX so even one right beside you never blocks the view (see sizePovLabels).
+  const POV_MIN = 0.04, POV_MAX = 0.16, POV_GROW_M = 120;
   function sizeLabel(s) {
     s.material.sizeAttenuation = !pov;
     s.material.needsUpdate = true;
-    const k = pov ? 0.04 : 48 * S;
+    const k = pov ? POV_MIN : 48 * S;
     s.scale.set(k, k, 1);
     s.position.y = pov ? STAKE_M : 95 * S;
   }
@@ -376,6 +378,16 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     g.add(sprite);
     g.position.copy(toWorld(...rcOf(idx)));
     return g;
+  }
+  /** Astronaut view, every frame: each badge's screen size from how far away it is. */
+  function sizePovLabels() {
+    for (const group of [markerGroup, pinGroup]) {
+      for (const g of group.children) {
+        const d = Math.hypot(g.position.x - camera.position.x, g.position.z - camera.position.z);
+        const k = Math.min(POV_MAX, Math.max(POV_MIN, POV_MIN * POV_GROW_M / Math.max(d, 1)));
+        for (const o of g.children) if (o.userData.label) o.scale.set(k, k, 1);
+      }
+    }
   }
   function setMarkers(list) {
     clear(markerGroup);
@@ -664,6 +676,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       const pitch = Math.max(-1.45, Math.min(1.45, Math.atan2(delta.y, Math.hypot(delta.x, delta.z)) + lookPitch));
       delta.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
       camera.lookAt(delta.add(camera.position));
+      sizePovLabels();
       renderer.render(scene, camera);
       return;
     }
