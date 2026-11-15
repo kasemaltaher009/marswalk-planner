@@ -22,11 +22,8 @@ export function showView(name) {
   if (name === 'pov' && state.activeView !== 'pov') { otherSlope = overlayOn('slope'); setOverlay('slope', povSlope); }
   if (name !== 'pov' && state.activeView === 'pov') { povSlope = overlayOn('slope'); setOverlay('slope', otherSlope); }
   state.activeView = name;
-  $('btnMap').setAttribute('aria-pressed', name === 'map');
-  $('btn3D').setAttribute('aria-pressed', name === '3d');
-  $('btnPOV').setAttribute('aria-pressed', name === 'pov');
+  markDock(name);
   refreshPovNudge();
-  moveDockPill();
   $('map').hidden = name !== 'map';
   $('view3d').hidden = name === 'map';
   $('readout').hidden = true;
@@ -85,6 +82,13 @@ export function showView(name) {
 }
 
 /** The cyan highlight behind the current view button slides from one button to the next. */
+/** Light the view button `name` in the dock (at the click, before any glide or blink has finished). */
+function markDock(name) {
+  $('btnMap').setAttribute('aria-pressed', name === 'map');
+  $('btn3D').setAttribute('aria-pressed', name === '3d');
+  $('btnPOV').setAttribute('aria-pressed', name === 'pov');
+  moveDockPill();
+}
 function moveDockPill() {
   const dock = document.querySelector('.viewdock');
   const btn = dock.querySelector('button[aria-pressed="true"]');
@@ -154,6 +158,7 @@ export async function switchView(name) {
   if (!state.view3d || REDUCED_MOTION) { showView(name); return; }
   const glide = (from === 'map' && name === '3d') || (from === '3d' && name === 'map');
   switching = true;
+  markDock(name);   // the highlight slides over at once; the view follows
   try {
     if (!glide) {
       await blink(name);
