@@ -393,10 +393,34 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
 .primary:disabled { opacity: .55; cursor: progress; }
 .primary { background: var(--gold); color: var(--basalt); border: 0; font-weight: 700; padding: 10px 22px; flex: none; }
 
+/* ---------- guided tour (js/tour.js): a card beside the part it explains, a ring around it ---------- */
+.tour {
+  position: fixed; z-index: 1500; width: min(330px, calc(100vw - 24px));
+  background: linear-gradient(var(--cyan), var(--cyan)) top / 100% 3px no-repeat, var(--panel);
+  border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 12px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .55);
+}
+.tour-count { margin: 0 0 2px; color: var(--cyan); font-size: 12.5px; font-weight: 600; font-stretch: var(--semi); }
+.tour h3 { font-size: 19px; font-weight: 700; line-height: 1.2; margin-bottom: 6px; }
+.tour-text { margin: 0 0 12px; font-size: 14px; }
+.tour-btns { display: flex; align-items: center; gap: 10px; }
+.tour-skip { border: 0; background: none; padding: 4px 0; color: var(--muted); cursor: pointer; text-decoration: underline; }
+.tour-skip:hover { color: var(--text); }
+.tour-wait { margin-left: auto; color: var(--gold); font-size: 13px; font-weight: 600; }
+.tour-wait::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: currentColor; animation: tour-pulse 1.2s ease-in-out infinite; }
+.tour .primary { margin-left: auto; padding: 6px 18px; }
+.tour-ring {
+  position: fixed; z-index: 1490; pointer-events: none; border: 2px solid var(--cyan); border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(10, 12, 15, .45), 0 0 18px rgba(98, 214, 232, .6);
+}
+@keyframes tour-pulse { 50% { opacity: .25; } }
+body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating corner row small */
+
 /* ---------- route draw-in (only when motion is OK) ---------- */
 @media (prefers-reduced-motion: reduce) {
   .astro::after { animation: none; }
   .briefing.leaving { transition: none; }
+  .tour-wait::before { animation: none; }
 }
 
 /* ---------- narrow screens: stack ---------- */

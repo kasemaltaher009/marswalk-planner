@@ -28,6 +28,7 @@ import { renderSummary } from './summary.js';
 import { setupWeather, renderWeather } from './weather.js';
 import { play, startPlayback, stopPlayback, setPanels, scrubTo } from './playback.js';
 import { showView } from './view3dBridge.js';
+import { setupTour, maybeStartTour } from './tour.js';
 
 async function init() {
   setupBriefing();
@@ -58,6 +59,7 @@ async function init() {
   setupMap();
   setupControls();
   setupWeather();
+  setupTour();
   refreshPointList();
   $('bBlocked').textContent = `${grid.blockedPct.toFixed(0)}%`;
   if (state.curiosity) $('bLastSol').textContent = latestStop().properties.sol;
@@ -69,9 +71,9 @@ async function init() {
 function setupBriefing() {
   $('btnBrief').addEventListener('click', () => {
     const b = $('briefing');
-    if (REDUCED_MOTION) { b.hidden = true; return; }
+    if (REDUCED_MOTION) { b.hidden = true; maybeStartTour(); return; }
     b.classList.add('leaving');
-    setTimeout(() => { b.hidden = true; }, 350);
+    setTimeout(() => { b.hidden = true; maybeStartTour(); }, 350);   // first visit: the guided tour
   });
 }
 
