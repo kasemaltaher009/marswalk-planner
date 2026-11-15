@@ -62,7 +62,7 @@
       </section>
 
       <section>
-        <h2>EVA settings</h2>
+        <h2>Walk settings <span class="muted">(EVA)</span></h2>
         <div class="field">
           <label for="inStart">Step outside at (local solar time)</label>
           <input type="time" id="inStart" value="10:00" step="900">
@@ -83,7 +83,7 @@
     </aside>
 
     <!-- Centre: map or 3D -->
-    <div class="stage" data-view="map">
+    <div class="stage" data-view="map" data-globe="true">
       <div id="map" aria-label="Map of the walking area"></div>
       <div id="view3d" hidden aria-label="3D view of the walking area"></div>
 
@@ -112,6 +112,10 @@
             <span><i class="dot" style="background:#ff4f7b"></i>Curiosity today</span>
             <span><i class="dot" style="background:#9a86ff"></i>past stops (photos)</span>
           </div>
+          <div class="legend" id="legendRoute" hidden>
+            <span><i class="line"></i>your route (a colour per leg)</span>
+            <span><i class="line dash"></i><span id="legendGhost">fastest</span> route, to compare</span>
+          </div>
         </div>
       </div>
 
@@ -120,6 +124,8 @@
       <!-- How to look at the walk: big switch at the bottom centre of the view -->
       <div class="viewdock" role="group" aria-label="View">
         <button type="button" id="btnMap" aria-pressed="true">
+      <!-- short-lived message near the view for errors and notices (the status line also has it) -->
+      <div class="toast" id="toast" aria-hidden="true" hidden></div>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/></svg>
           <span>Map</span>
         </button>
@@ -224,14 +230,14 @@
       <h2 id="briefTitle">Plan a safe walk on Mount Sharp</h2>
       <p>Curiosity has been climbing Mount Sharp in Gale Crater since 2014. This planner combines its measurements with orbital maps to find the safest walking route to the science targets you choose, then checks the walk against your suit's limits before you step outside.</p>
       <dl class="brief-facts">
-        <div><dt>Walking area</dt><dd><span id="bSize">4 × 4 km</span> around Curiosity's position on sol <span id="bLastSol">5070</span></dd></div>
+        <div><dt>Walking area</dt><dd><span id="bSize">5 × 5 km</span> around Curiosity's position on sol <span id="bLastSol">5070</span></dd></div>
         <div><dt>Too steep to walk</dt><dd><span id="bBlocked">–</span> of the area</dd></div>
         <div><dt>Map detail</dt><dd>1 m elevation, 2 m colour photo</dd></div>
         <div><dt>Suit limit</dt><dd>4 hours</dd></div>
       </dl>
       <ol class="brief-steps">
-        <li>Click the map to place your start.</li>
-        <li>Add up to three science targets.</li>
+        <li>Click Gale Crater on the globe to fly down to the walking area.</li>
+        <li>Click the ground to place your start, then add up to three science targets.</li>
         <li>Read the go/no-go call, then play the walk.</li>
       </ol>
       <div class="brief-load" id="briefLoad">

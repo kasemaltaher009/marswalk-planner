@@ -40,9 +40,21 @@ export const state = {
 // Page helpers
 // ---------------------------------------------------------------------------
 export const $ = (id) => document.getElementById(id);
+/** The status line in the top bar. Errors also pop up over the view, where the user is looking. */
 export const setStatus = (msg, isError = false) => {
   $('status').textContent = msg;
   $('status').classList.toggle('error', isError);
+  if (isError) toast(msg, true);
+};
+let toastTimer = null;
+/** A short message over the map / 3D view that fades after a few seconds. */
+export const toast = (msg, isError = false) => {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.toggle('error', isError);
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 5000);
 };
 
 // ---------------------------------------------------------------------------

@@ -601,15 +601,16 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   /** First opening: start on the globe, Gale Crater in view. The user spins it, then clicks
    *  Gale (or "Fly to Gale Crater") to fly down to the walk. */
   let introDone = false;
+  let introPending = true;           // nothing is drawn until we know: globe first, or terrain if it can't load
   async function intro() {
     introDone = true;
-    if (!globe) return;
-    const t0 = performance.now();
-    try { await globe.ready; } catch (err) { console.warn('Mars globe not loaded:', err); return; }
+    const toTerrain = () => { introPending = false; setMode('local'); };
+    if (!globe) { toTerrain(); return; }
+    try { await globe.ready; } catch (err) { console.warn('Mars globe not loaded:', err); toTerrain(); return; }
     globeOK = true;
+    introPending = false;
     updateGlobeButton();
-    // not in the astronaut view, or if the globe came too late (the terrain is already showing)
-    if (pov || flying || performance.now() - t0 > 1500) return;
+    if (pov || flying) { setMode('local'); return; }   // the astronaut stands on the terrain
     setMode('globe');
     globe.pose(latLonToVec(config.center.lat + 12, config.center.lon - 30), ALT_HIGH);
     globe.controls.enabled = true;
@@ -666,6 +667,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   function frame() {
     if (!running) return;
     requestAnimationFrame(frame);
+    if (introPending && !pov) return;   // first opening: wait for the globe, never flash the terrain
     tick();
     if (pov && mode !== 'local') setMode('local');
     if (mode === 'globe') {

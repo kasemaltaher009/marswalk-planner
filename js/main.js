@@ -81,8 +81,17 @@ function setupBriefing() {
 function setupControls() {
   $('btnUndo').addEventListener('click', () => { if (state.points.length) removePoint(state.points[state.points.length - 1]); });
   $('btnClear').addEventListener('click', () => {
+  // the × on each waypoint row removes that point
+  $('pointList').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-i]');
+    if (!btn) return;
+    const i = Number(btn.dataset.i);
+    removePoint(state.points[i]);
+    const next = $('pointList').querySelectorAll('button[data-i]');
+    (next[Math.min(i, next.length - 1)] || $('btnUndo')).focus();   // keep keyboard focus in the list
+  });
     clearPoints();
-    setStatus('Cleared. Click the map to place a new start.');
+    setStatus('Cleared. Click the ground to place a new start.');
   });
   // These change which route is best → re-plan
   ['optReturn', 'optOrder'].forEach((id) => $(id).addEventListener('change', () => planRoute()));

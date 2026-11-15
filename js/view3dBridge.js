@@ -3,7 +3,7 @@
  * view3d.js (three.js) is loaded the first time a 3D view opens. */
 import { state, $, setStatus, DATA } from './state.js';
 import { map, overlayOn, setOverlay } from './map.js';
-import { addPoint } from './points.js';
+import { addPoint, refreshHint } from './points.js';
 import { placeAstronaut, lookedAt, refreshAreaPicture } from './playback.js';
 
 let view3dLoading = null;
@@ -30,6 +30,7 @@ export function showView(name) {
   $('readout').hidden = true;
   document.querySelector('.stage').dataset.view = name;   // CSS hides the layer toolbar in the astronaut view
   refreshAreaPicture();   // the astronaut view shows the photo of where you look, the others all photos
+  refreshHint();
   if (name === 'map') {
     state.view3d?.stop();
     map.invalidateSize();
@@ -50,6 +51,7 @@ export function showView(name) {
           onLook: lookedAt,
           onMode: (mode) => {
             document.querySelector('.stage').dataset.globe = mode === 'globe';   // CSS hides the map layer buttons
+            refreshHint();
             if (state.activeView === '3d') setStatus(MODE_STATUS[mode]);
           },
         });

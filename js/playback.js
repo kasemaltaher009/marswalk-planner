@@ -95,6 +95,7 @@ export function stopPlayback(reset = false, replace = true) {
   if (elevChart) { elevChart.$cursor = null; elevChart.update('none'); }
   if (tempChart) { tempChart.$cursor = null; tempChart.update('none'); }
   state.view3d?.setAstronaut(null);
+  setPlayButton(false);   // back at the start: "Play walk", not "Resume"
   if (replace && state.activeView === 'pov' && state.plan) placeAstronaut();
 }
 

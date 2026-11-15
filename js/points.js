@@ -33,7 +33,7 @@ export function addPoint(cellIdx) {
 
 /** Clicked a cliff? Move to the nearest walkable cell (within 100 m). */
 function snapToWalkable(idx) {
-  if (idx < 0) { setStatus('Click inside the dashed gold square, the planning area.', true); return null; }
+  if (idx < 0) { setStatus('Click inside the planning area (the photo).', true); return null; }
   const snapped = nearestWalkable(state.grid, idx, SNAP_RADIUS_CELLS);
   if (snapped === null) {
     setStatus('Too steep there and no walkable ground within 100 m. Pick another spot.', true);
@@ -89,12 +89,22 @@ export function refreshPointList() {
   });
   $('pointList').innerHTML = points.map((pt, i) =>
     `<li><span class="tag ${i === 0 ? 'start' : 'target'}">${i === 0 ? 'S' : i}</span>
-      ${pointName(i)}<span class="sub">${grid.elev[pt.idx].toFixed(0)} m</span></li>`).join('');
-  $('clickHint').textContent = points.length === 0
-    ? 'Click the map to place your start, the airlock or rover.'
-    : points.length <= MAX_TARGETS
-      ? `Click to add science target ${points.length}. Drag markers to adjust them, or click one to see Curiosity's photo from there.`
-      : 'All three targets are placed. Drag markers to adjust them, or click one to see its photo.';
+      ${pointName(i)}<span class="sub">elev. ${grid.elev[pt.idx].toFixed(0)} m</span>
+      <button type="button" class="rm" data-i="${i}" aria-label="Remove ${pointName(i).toLowerCase()}" title="Remove">×</button></li>`).join('');
+  refreshHint();
   $('btnUndo').disabled = $('btnClear').disabled = points.length === 0;
   sync3DMarkers();
+}
+
+/** The "what to do next" line above the waypoint list. */
+export function refreshHint() {
+  const n = state.points.length;
+  const onGlobe = state.activeView !== 'map' && document.querySelector('.stage').dataset.globe === 'true';
+  $('clickHint').textContent = onGlobe && n === 0
+    ? 'First click Gale Crater on the globe to fly down to the walking area.'
+    : n === 0
+      ? "Click the ground to place your start. The end of Curiosity's track is a good spot."
+      : n <= MAX_TARGETS
+        ? `Click to add science target ${n}. Drag markers to adjust them, or click one to see Curiosity's photo from there.`
+        : 'All three targets are placed. Drag markers to adjust them, or click one to see its photo.';
 }

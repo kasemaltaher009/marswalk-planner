@@ -96,6 +96,11 @@ input[type=range] { width: 100%; }
 }
 .points li:last-child { border-bottom: 0; }
 .points .sub { color: var(--muted); margin-left: auto; font-size: 13px; }
+.points .rm {
+  width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 0;
+  border: 1px solid transparent; border-radius: 5px; background: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1;
+}
+.points .rm:hover { color: var(--text); border-color: var(--line); background: var(--raised); }
 .tag {
   width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none;
   font-weight: 700; font-size: 13px; color: var(--basalt);
@@ -111,6 +116,12 @@ input[type=range] { width: 100%; }
 #map, #view3d { position: absolute; inset: 0; }
 #map { background: #3b2a20; }
 #view3d { background: var(--sky); cursor: grab; }
+/* the app opens on the Mars globe: dark space (not the terrain's sky) while the 3D view builds */
+.stage[data-globe="true"] #view3d { background: #05060a; }
+.stage[data-globe="true"] #view3d:not(:has(canvas))::after {
+  content: "Loading Mars…"; position: absolute; inset: 0; display: grid; place-items: center;
+  color: var(--muted); font-size: 15px; letter-spacing: .04em;
+}
 #view3d:active { cursor: grabbing; }
 #view3d canvas { display: block; }
 #view3d canvas:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
@@ -150,6 +161,18 @@ input[type=range] { width: 100%; }
 }
 .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
 .legend i.dot { border-radius: 50%; border: 1px solid #fff; }
+.legend i.line { width: 16px; height: 3px; border-radius: 0; vertical-align: 3px; background: linear-gradient(90deg, #62d6e8 50%, #3f8ff0 50%); }
+.legend i.line.dash { background: repeating-linear-gradient(90deg, var(--gold) 0 5px, transparent 5px 8px); }
+.stage[data-view="pov"] #legendRoute { display: none; }
+
+/* errors and notices pop up over the view, where the user is looking */
+.toast {
+  position: absolute; left: 50%; translate: -50% 0; bottom: calc(var(--above-dock) + 64px); z-index: 760;
+  width: max-content; max-width: min(460px, calc(100% - 24px)); pointer-events: none;
+  background: rgba(20, 24, 29, .95); border: 1px solid var(--gold); border-radius: 8px;
+  padding: 8px 14px; font-size: 14px; text-align: center; box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
+}
+.toast.error { border-color: var(--nogo); }
 
 /* View switch: a big dock at the bottom centre of the view, the current view lit in cyan.
    Everything else at the bottom (player, helmet display, readout) sits above it. */

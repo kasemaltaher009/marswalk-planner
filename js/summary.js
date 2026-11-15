@@ -55,6 +55,11 @@ export function renderSummary() {
   ['statsBox', 'compareBox', 'elevBox'].forEach((id) => { $(id).hidden = !r; });
   $('player').hidden = !r;
   $('btnPOV').disabled = !r;
+  // map legend for the comparison route (drawn only when it differs from yours)
+  const ghostShown = !!(r && plan.ghost && plan.ghost.path.join() !== r.path.join());
+  $('legendRoute').hidden = !r;
+  $('legendGhost').parentElement.hidden = !ghostShown;
+  if (ghostShown) $('legendGhost').textContent = priorityName(plan.ghostPriority).toLowerCase();
   $('btnPOV').title = r ? 'Walk the route at eye level' : 'Plan a route first';
   if (!r && state.activeView === 'pov') showView('3d');
   box.className = 'verdict-box';

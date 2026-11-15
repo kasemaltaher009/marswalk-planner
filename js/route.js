@@ -1,6 +1,6 @@
 /* Re-plan the walk whenever the points or options change.
  * The search itself is in routing/ (A*, best order, stats); this file connects it to the page. */
-import { state, $, setStatus, priority } from './state.js';
+import { state, $, setStatus, toast, priority } from './state.js';
 import { bestRoute } from './routing/planner.js';
 import { drawRoutes } from './routeDraw.js';
 import { renderSummary } from './summary.js';
@@ -20,6 +20,7 @@ function routeFor(p) {
 export function planRoute({ animate = true } = {}) {
   clearTimeout(planTimer);
   stopPlayback(true, false);   // the old route is about to go: don't place the astronaut on it
+  if (state.notice) toast(state.notice.trim());
   if (state.points.length < 2) {
     state.plan = null;
     if (state.notice) setStatus(state.notice);
