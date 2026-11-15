@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGlobe, latLonToVec } from './globe3d.js';
+import { createAstronaut } from './astronaut3d.js';
 
 const EXAGGERATION = 1.5;   // vertical exaggeration so the relief reads at a glance
 const MESH_STEP = 1;        // mesh vertex on every grid cell (5 m), so eye-level views sit on the ground
@@ -29,6 +30,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   const { W, H, cell, elev } = grid;
   const size = W * cell;
   const S = size / 2000;          // overview sizes were tuned for a 2 km area; scale them with it
+  const M = 0.4 * S;              // routes, pins and the astronaut: kept slim so they don't hide the terrain
   let minE = Infinity;
   for (const e of elev) if (e < minE) minE = e;
 
@@ -324,7 +326,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       return;
     }
     for (const { path, color, radius, opacity = 1, lane } of list) {
-      const mesh = tube(sample(path, 2), { color, opacity, radius: radius * S, lift: radius * S + 2, offset: lane ? 6 * S : 0 });
+      const mesh = tube(sample(path, 2), { color, opacity, radius: radius * M, lift: radius * M + 2, offset: lane ? 6 * M : 0 });
       if (mesh) routeGroup.add(mesh);
     }
   }
@@ -345,7 +347,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     for (const rc of lines) {
       const mesh = tube(rc, pov
         ? { radius: 0.12, lift: 0.6, color: '#efe8dc', opacity: 0.35 }
-        : { radius: 1.6 * S, lift: 3, color: '#efe8dc', opacity: 0.4 });
+        : { radius: 1.6 * M, lift: 3, color: '#efe8dc', opacity: 0.4 });
       if (mesh) traverseGroup.add(mesh);
     }
   }
@@ -383,16 +385,16 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   function sizeLabel(s) {
     s.material.sizeAttenuation = !pov;
     s.material.needsUpdate = true;
-    const k = pov ? POV_MIN : 48 * S;
+    const k = pov ? POV_MIN : 48 * M;
     s.scale.set(k, k, 1);
-    s.position.y = pov ? STAKE_M : 95 * S;
+    s.position.y = pov ? STAKE_M : 95 * M;
   }
   /** A badge on a 70 m pole at grid cell idx. In the astronaut view the pole is hidden (it could
    *  stand right in front of the eye), unless `stake` asks for a thin one, like a pin in the ground. */
   function marker(idx, sprite, stake = false) {
     const g = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.6 * S, 1.6 * S, 70 * S, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
-    pole.position.y = 35 * S;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.6 * M, 1.6 * M, 70 * M, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+    pole.position.y = 35 * M;
     pole.userData.pole = true;
     pole.visible = !pov;
     g.add(pole);
@@ -444,16 +446,15 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   }
 
   // ---- astronaut ----
-  const astro = new THREE.Group();
-  astro.scale.setScalar(S);
-  const body = new THREE.Mesh(new THREE.SphereGeometry(15, 20, 14), new THREE.MeshBasicMaterial({ color: '#62d6e8' }));
-  body.position.y = 30;
-  const halo = new THREE.Mesh(new THREE.RingGeometry(22, 28, 32), new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide }));
-  halo.rotation.x = -Math.PI / 2;
-  halo.position.y = 3;
-  astro.add(body, halo);
+  // suited figure from astronaut3d.js (≈ 62 units tall, feet at 0, faces +z); oversized like the pins
+  const astro = createAstronaut();
+  astro.scale.setScalar(M);
   astro.visible = false;
   scene.add(astro);
+  // its walk: which way it faces (smoothed in the render loop) and the stride animation
+  let faceGoal = null;
+  const STRIDE = 50 * M;                  // world distance per full stride (two steps) at this size
+  const walkAnim = { phase: 0, amount: 0, last: new THREE.Vector3(), has: false };
   let follow = false;
   // Astronaut view: where the eye is and where it looks (smoothed in the render loop)
   const eyeGoal = new THREE.Vector3(), lookGoal = new THREE.Vector3(), lookNow = new THREE.Vector3();
@@ -465,8 +466,12 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
 
   /** Place the astronaut at grid (r, c), looking towards (lookR, lookC) along the route. */
   function setAstronaut(r, c, followIt = false, lookR = r, lookC = c) {
-    if (r == null) { astro.visible = false; follow = false; return; }
+    if (r == null) { astro.visible = false; follow = false; walkAnim.has = false; faceGoal = null; return; }
     astro.position.copy(toWorld(r, c));
+    if (Math.hypot(lookR - r, lookC - c) > 0.5) {
+      faceGoal = Math.atan2(lookC - c, lookR - r);                      // x = east (cols), z = south (rows)
+      if (!walkAnim.has) astro.rotation.y = faceGoal;                  // first placement: face the path at once
+    }
     astro.visible = !pov;
     follow = followIt;
     eyeGoal.copy(toWorld(r, c, EYE_M));
@@ -781,6 +786,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       return;
     }
     if (flying) { renderer.render(scene, camera); return; }   // the flight moves the camera
+    if (astro.visible) animateWalker();
     if (follow && astro.visible) {      // glide the camera along with the astronaut
       delta.copy(astro.position).sub(controls.target).multiplyScalar(0.06);
       controls.target.add(delta);
@@ -791,6 +797,23 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     const floor = groundAt(camera.position.x, camera.position.z) + 60 * S;
     if (camera.position.y < floor) camera.position.y = floor;
     renderer.render(scene, camera);
+  }
+  // the figure strides as far as it moved since the last frame (capped, so fast playback doesn't
+  // blur the legs), stands still while it doesn't move, and turns smoothly towards the path ahead
+  function animateWalker() {
+    const p = astro.position;
+    const moved = walkAnim.has ? Math.hypot(p.x - walkAnim.last.x, p.z - walkAnim.last.z) : 0;
+    walkAnim.last.copy(p);
+    walkAnim.has = true;
+    const walking = moved > 0.02 * M;
+    walkAnim.amount += ((walking ? 1 : 0) - walkAnim.amount) * 0.12;
+    if (walking) walkAnim.phase += Math.min(0.35, (moved / STRIDE) * Math.PI * 2);
+    else if (walkAnim.amount < 0.02) walkAnim.phase = 0;
+    astro.userData.walk(walkAnim.phase, walkAnim.amount);
+    if (faceGoal != null) {
+      const turn = ((faceGoal - astro.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      astro.rotation.y += turn * 0.15;
+    }
   }
   function resize() {
     const w = container.clientWidth, h = container.clientHeight;
