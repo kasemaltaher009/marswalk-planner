@@ -4,7 +4,7 @@
 import { state, $, setStatus, DATA, REDUCED_MOTION, SAND_FILTER } from './state.js';
 import { map, overlayOn, setOverlay } from './map.js';
 import { addPoint, refreshHint } from './points.js';
-import { placeAstronaut, lookedAt, refreshAreaPicture, refreshPovNudge, setPanels, holdWalk } from './playback.js';
+import { placeAstronaut, lookedAt, refreshAreaPicture, refreshPovNudge, setPanels, holdWalk, stopPlayback } from './playback.js';
 
 let view3dLoading = null;
 let introEnding = false;   // the start-up globe's panels / view switch are on their way in (showView)
@@ -40,6 +40,7 @@ export function showView(name) {
       setPanels(true, { alsoChange: () => document.body.classList.remove('globe-intro') });
     }
     state.view3d?.stop();
+    $('btnMars').hidden = !state.view3d?.globeOK;   // the map's "Zoom out to Mars" (needs the globe)
     map.invalidateSize();
     // a 3D how-to left in the status line would be wrong here (route messages stay)
     const shown = $('status').textContent;
@@ -56,9 +57,11 @@ export function showView(name) {
           grid: state.grid, config: state.config, dataUrl: DATA,
           onPick: (idx) => addPoint(idx),
           onLook: lookedAt,
-          onLand: { landing: mapLanding, done: fadeToMap },   // the first fly-in ends on the map
+          // the first fly-in ends on the map; as it starts, the title over the globe lifts away
+          onLand: { start: () => document.body.classList.add('intro-leaving'), landing: mapLanding, done: fadeToMap },
           onMode: (mode) => {
             document.querySelector('.stage').dataset.globe = mode === 'globe';   // CSS hides the map layer buttons
+            if (mode === 'globe') backToStart();
             refreshHint();
             if (state.activeView === '3d') setStatus(MODE_STATUS[mode]);
           },
@@ -87,6 +90,18 @@ export function showView(name) {
     view3d.resize();
     view3d.start();
   });
+}
+
+/** "Zoom out to Mars" reached the globe: back to the start screen, as when the app opened (the logo
+ *  over the planet, no panels or buttons; body.globe-intro). Switched while the dust haze covers the
+ *  view. A walk in progress ends. The plan stays; clicking Gale Crater lands on the map again. */
+function backToStart() {
+  if (document.body.classList.contains('globe-intro')) return;   // the app is just opening on the globe
+  introEnding = false;
+  document.body.classList.add('globe-intro');
+  document.body.classList.remove('intro-leaving');   // the title's entrance plays again
+  setPanels(false, { animate: false });
+  if (!$('btnEnd').hidden) stopPlayback(true, false);   // setWalkMode keeps the panels hidden here
 }
 
 /** The cyan highlight behind the current view button slides from one button to the next. */
@@ -203,6 +218,27 @@ async function blink(name) {
   veil.classList.remove('on');
 }
 const BLINK_MS = 180;   // matches the opacity transition of .veil in style.css
+
+/** The map's "Zoom out to Mars" button: fade over to the 3D view looking straight down on what the
+ *  map shows, then fly out to the globe (which brings back the start screen, backToStart). */
+export async function zoomOutToMars() {
+  if (switching || state.activeView !== 'map' || !state.view3d?.globeOK) return;
+  switching = true;
+  try {
+    const view = mapView();
+    const v = $('view3d');
+    v.classList.add('fading');          // shown invisible over the map…
+    showView('3d');
+    $('map').hidden = false;
+    await view3dLoading;
+    const fly = state.view3d.zoomOutFrom(view);   // straight above the map's view from the first frame
+    await nextFrame(); await nextFrame();
+    v.classList.remove('fading');       // …then fades in
+    await new Promise((r) => setTimeout(r, FADE_MS));
+    if (state.activeView === '3d') $('map').hidden = true;
+    await fly;
+  } finally { switching = false; }
+}
 
 async function mapTo3D() {
   const view = mapView();

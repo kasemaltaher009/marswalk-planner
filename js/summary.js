@@ -89,7 +89,9 @@ export function renderSummary() {
   $('sUp').textContent = `${Math.round(s.up)} m`;
   $('sRad').textContent = `${(config.radiation_mSv_per_day * totalH / config.sol_hours).toFixed(3)} mSv`;
   $('sEnd').textContent = fmtClock(startHour() + totalH);
-  $('sumLine').textContent = `${fmtDist(s.total)} · ${fmtH(totalH)}`;   // shown when the card is folded
+  // shown when the card is folded; distance and time each stay on one line (no-break spaces)
+  const nb = (t) => t.replace(/ /g, ' ');
+  $('sumLine').textContent = `${nb(fmtDist(s.total))} · ${nb(fmtH(totalH))}`;
   $('sOrder').innerHTML = r.legs.map((l) =>
     `<li><i style="background:${l.color}"></i>${pointName(l.fromPoint)} to ${pointName(l.toPoint).toLowerCase()}` +
     `<span>${fmtDist(s.dist[l.to] - s.dist[l.from])}</span></li>`).join('');

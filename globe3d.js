@@ -1,4 +1,4 @@
-/* MarsWalk Planner — Mars globe for the 3D fly-in (three.js).
+/* Ariadne (Marswalk planner) — Mars globe for the 3D fly-in (three.js).
  * The whole planet from NASA's Viking colour mosaic (mars_globe.jpg), a sharper patch around
  * Gale Crater (gale_region.jpg) for the zoom-in, a thin dusty atmosphere and a marker on the
  * walk area. Used by view3d.js, which owns the renderer and the fly-in/fly-out animation.

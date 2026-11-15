@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Ariadne favicon: simplified mark for small sizes -->
+  <rect width="200" height="200" rx="44" fill="#1A1F2A"/>
+  <path d="M66 132 Q97 120 128 132" fill="none" stroke="#E2683C" stroke-width="18" stroke-linecap="round"/>
+  <path d="M100 60 L150 172" fill="none" stroke="#E2683C" stroke-width="18" stroke-linecap="round"/>
+  <path d="M48 172 L70 140 L60 128 L100 60" fill="none" stroke="#5FE3E0" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
