@@ -1,7 +1,7 @@
 /* Playback: the astronaut walks the route, with a helmet display (HUD) and a picture of the area. */
 import {
   state, $, RESERVE_H, PLAY_SECONDS_PER_HOUR, PHOTO_RADIUS_M,
-  playSpeed, startHour, stopHours, suitHours, selectedWeather, fmtH, fmtClock, fmtDist, REDUCED_MOTION,
+  playSpeed, startHour, stopHours, suitHours, selectedWeather, fmtH, fmtClock, fmtDist, fmtElev, REDUCED_MOTION,
 } from './state.js';
 import { rcOf } from './routing/grid.js';
 import { map, astroMarker, walkedLine, latlngOf, latlngOfRC, cellAtLatLng } from './map.js';
@@ -63,6 +63,7 @@ export function startPlayback() {
  *  The "Hide panels" button shows or hides them (side panels and top bar) at any time. */
 function setWalkMode(on) {
   walking = on;
+  povSeen = false;
   $('btnEnd').hidden = !on;
   // body.walking: the verdict card goes too (the helmet display is up); with only the panels hidden
   // it stays as a compact verdict line (style.css)
@@ -70,11 +71,14 @@ function setWalkMode(on) {
   refreshPovNudge();
 }
 let walking = false;
+let povSeen = false;   // the astronaut view was visited during this walk: stop nudging
 
 /** While a walk is on and you're watching from above, the Astronaut view button pulses
  *  ("see the walk on foot") to invite you in. Called again whenever the view changes. */
 export function refreshPovNudge() {
-  $('btnPOV').classList.toggle('nudge', walking && state.activeView !== 'pov');
+  if (state.activeView === 'pov') povSeen = true;
+  const finished = play.tl && play.t >= play.tl.total;
+  $('btnPOV').classList.toggle('nudge', walking && !povSeen && !finished && state.activeView !== 'pov');
 }
 
 /** Show or hide the side panels (and the verdict card). `animate: false` switches at once.
@@ -174,7 +178,7 @@ function tick(now) {
   const dt = play.holds ? 0 : Math.min(MAX_FRAME_S, (now - play.last) / 1000);
   play.last = now;
   play.t = Math.min(play.tl.total, play.t + dt / PLAY_SECONDS_PER_HOUR * playSpeed());
-  if (play.t >= play.tl.total) play.playing = false;   // finished: render once more as stopped
+  if (play.t >= play.tl.total) { play.playing = false; refreshPovNudge(); }   // finished: render once more as stopped
   renderPlayback();
   if (!play.playing) { setPlayButton(false); return; }
   requestAnimationFrame(tick);
@@ -228,9 +232,9 @@ export function renderPlayback() {
   $('hSuitBar').className = left < 0 ? 'nogo' : left < RESERVE_H + 0.25 ? 'caution' : '';
   $('hSuit').textContent = left >= 0 ? `${fmtH(left)} of suit time left` : `${fmtH(-left)} over the suit limit`;
   $('hDist').textContent = fmtDist(walked);
-  $('hElev').textContent = `${elev.toFixed(0)} m`;
-  const g = Math.atan(stats.grade(Math.max(1, k))) * 180 / Math.PI;
-  $('hGrade').textContent = stop !== null || done ? '0°' : `${g >= 0 ? '+' : ''}${g.toFixed(0)}°`;
+  $('hElev').textContent = fmtElev(elev);
+  const g = Math.round(Math.atan(stats.grade(Math.max(1, k))) * 180 / Math.PI);
+  $('hGrade').textContent = stop !== null || done ? '0°' : `${g > 0 ? '+' : ''}${g + 0}°`;
   const wx = selectedWeather();
   $('hAir').textContent = wx ? `${airTempAt(wx, clock).toFixed(0)} °C` : 'no data';
   $('hDose').textContent = `${(config.radiation_mSv_per_day * play.t / config.sol_hours).toFixed(3)} mSv`;

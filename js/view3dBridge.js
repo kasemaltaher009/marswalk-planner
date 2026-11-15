@@ -1,7 +1,7 @@
 /* Switching between the map, the 3D terrain and the astronaut view, and keeping the 3D view
  * in step with the map (texture layers, markers, routes, Curiosity's drive path).
  * view3d.js (three.js) is loaded the first time a 3D view opens. */
-import { state, $, setStatus, DATA, REDUCED_MOTION } from './state.js';
+import { state, $, setStatus, DATA, REDUCED_MOTION, SAND_FILTER } from './state.js';
 import { map, overlayOn, setOverlay } from './map.js';
 import { addPoint, refreshHint } from './points.js';
 import { placeAstronaut, lookedAt, refreshAreaPicture, refreshPovNudge, setPanels, holdWalk } from './playback.js';
@@ -231,7 +231,7 @@ export function sync3DTexture() {
   const base = document.querySelector('[data-base="relief"]').getAttribute('aria-pressed') === 'true' ? 'hillshade.png' : 'photo.jpg';
   const list = [{ url: DATA + base, opacity: 1 }];
   if (overlayOn('slope')) list.push({ url: DATA + 'slope.png', opacity: 0.7 });
-  if (overlayOn('ground')) list.push({ url: DATA + 'ground.png', opacity: 0.8 });
+  if (overlayOn('ground')) list.push({ url: DATA + 'ground.png', opacity: 0.8, filter: SAND_FILTER });
   state.view3d.setTexture(list);
 }
 
@@ -247,9 +247,9 @@ export function sync3DRoutes() {
   const list = [];
   if (state.plan) {
     const { chosen, ghost } = state.plan;
-    if (ghost && ghost.path.join() !== chosen.path.join()) list.push({ path: ghost.path, color: '#d9b24c', radius: 2, opacity: 0.8, ghost: true });
+    if (ghost && ghost.path.join() !== chosen.path.join()) list.push({ path: ghost.path, color: '#d9b24c', radius: 1.4, opacity: 0.8, ghost: true });
     // one tube per leg, each in its own lane (right of travel), coloured like on the map
-    for (const leg of chosen.legs) list.push({ path: chosen.path.slice(leg.from, leg.to + 1), color: leg.color, radius: 3.5, lane: true, leg: leg.i });
+    for (const leg of chosen.legs) list.push({ path: chosen.path.slice(leg.from, leg.to + 1), color: leg.color, radius: 2.2, lane: true, leg: leg.i });
   }
   state.view3d.setRoutes(list);
 }

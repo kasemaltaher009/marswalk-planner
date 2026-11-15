@@ -23,7 +23,7 @@ import { loadAll } from './data.js';
 import { buildGrid } from './routing/grid.js';
 import { setupMap } from './map.js';
 import { latestStop } from './curiosity.js';
-import { refreshPointList, removePoint, clearPoints } from './points.js';
+import { refreshPointList, removePoint, clearPoints, undoPoint } from './points.js';
 import { planRoute } from './route.js';
 import { renderSummary, setupSummaryFit } from './summary.js';
 import { setupWeather, renderWeather } from './weather.js';
@@ -83,8 +83,14 @@ const BRIEFING_KEY = 'marswalk.briefingSeen';
 let returning = false;
 try { returning = localStorage.getItem(BRIEFING_KEY) === '1'; } catch { /* private window: full briefing */ }
 
+/** While the briefing is open, everything behind it is inert: no Tab or clicks reach it. */
+function setPageInert(on) {
+  for (const el of document.body.children) if (el !== $('briefing') && el.tagName !== 'SCRIPT') el.inert = on;
+}
+
 function setupBriefing() {
   $('briefing').classList.toggle('returning', returning);
+  setPageInert(true);
   $('btnBrief').addEventListener('click', () => {
     try { localStorage.setItem(BRIEFING_KEY, '1'); } catch { /* fine */ }
     closeBriefing();
@@ -93,6 +99,7 @@ function setupBriefing() {
 
 function closeBriefing() {
   const b = $('briefing');
+  setPageInert(false);
   if (REDUCED_MOTION) { b.hidden = true; maybeStartTour(); return; }
   b.classList.add('leaving');
   setTimeout(() => { b.hidden = true; maybeStartTour(); }, 350);   // first visit: the guided tour
@@ -111,10 +118,10 @@ function setupControls() {
     const next = $('pointList').querySelectorAll('button[data-i]');
     (next[Math.min(i, next.length - 1)] || $('btnUndo')).focus();   // keep keyboard focus in the list
   });
-  $('btnUndo').addEventListener('click', () => { if (state.points.length) removePoint(state.points[state.points.length - 1]); });
+  $('btnUndo').addEventListener('click', undoPoint);
   $('btnClear').addEventListener('click', () => {
     clearPoints();
-    setStatus('Cleared. Click the ground to place a new start.');
+    setStatus('Cleared. Click the ground to place a new start, or press Undo to bring the points back.');
   });
   // These change which route is best → re-plan
   ['optReturn', 'optOrder'].forEach((id) => $(id).addEventListener('change', () => planRoute()));

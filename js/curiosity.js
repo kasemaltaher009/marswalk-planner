@@ -15,11 +15,17 @@ export function curiosityLayer() {
     interactive: false,
     pointToLayer: (f, latlng) => {
       const now = f.properties.sol === lastSol;
-      return L.circleMarker(latlng, {
+      // The visible dot is small; an invisible 24 px circle on top takes the clicks and hovers.
+      const dot = L.circleMarker(latlng, {
         radius: now ? 8 : 5, weight: 2, color: '#fff',
-        fillColor: now ? '#ff4f7b' : '#9a86ff', fillOpacity: 1,
+        fillColor: now ? '#ff4f7b' : '#9a86ff', fillOpacity: 1, interactive: false,
+      });
+      const hit = L.circleMarker(latlng, {
+        radius: Math.max(12, now ? 8 : 5), stroke: false, fillOpacity: 0,
         bubblingMouseEvents: false,   // clicking a stop must not add a plan point
       });
+      hit.on('add', (e) => dot.addTo(e.target._map)).on('remove', () => dot.remove());
+      return hit;
     },
     onEachFeature: (f, layer) => {
       if (f.geometry.type !== 'Point') return;

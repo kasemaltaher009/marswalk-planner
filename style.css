@@ -84,7 +84,8 @@ button, input, select { font: inherit; color: inherit; }
 }
 .row button:hover:not(:disabled) { border-color: var(--muted); }
 button:disabled { opacity: .4; cursor: default; }
-.check { display: flex; align-items: center; gap: 8px; margin: 6px 0; cursor: pointer; font-size: 14px; }
+.check input { width: 18px; height: 18px; margin: 0; }
+.check { min-height: 24px; display: flex; align-items: center; gap: 8px; margin: 6px 0; cursor: pointer; font-size: 14px; }
 input[type=checkbox], input[type=range] { accent-color: var(--cyan); }
 .field { margin-bottom: 12px; }
 .field label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 4px; }
@@ -102,7 +103,7 @@ input[type=range] { width: 100%; }
 }
 .points .tag { width: 20px; height: 20px; font-size: 12px; }
 .points .rm {
-  width: 20px; height: 20px; flex: none; display: grid; place-items: center; padding: 0;
+  width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 0;
   border: 1px solid transparent; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1;
 }
 .points .rm:hover { color: var(--text); border-color: var(--line); background: var(--raised); }

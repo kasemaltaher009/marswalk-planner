@@ -1,5 +1,5 @@
 /* The start + target points the astronaut places on the map. */
-import { state, $, setStatus, MAX_TARGETS, SNAP_RADIUS_CELLS, PHOTO_RADIUS_M, pointName } from './state.js';
+import { state, $, setStatus, MAX_TARGETS, SNAP_RADIUS_CELLS, PHOTO_RADIUS_M, pointName, fmtElev } from './state.js';
 import { nearestWalkable } from './routing/grid.js';
 import { map, latlngOf, cellAtLatLng } from './map.js';
 import { nearestStop } from './curiosity.js';
@@ -20,6 +20,13 @@ export function addPoint(cellIdx) {
   }
   const idx = snapToWalkable(cellIdx);
   if (idx === null) return;
+  cleared = [];   // a new point replaces the chance to bring the cleared ones back
+  placePoint(idx);
+  refreshPointList();
+  planRoute();
+}
+
+function placePoint(idx) {
   const marker = L.marker(latlngOf(idx), { draggable: true, autoPan: true });
   const pt = { idx, marker };
   state.points.push(pt);
@@ -33,8 +40,6 @@ export function addPoint(cellIdx) {
   });
   marker.bindPopup(() => pointPopup(pt), { maxWidth: 300 });
   marker.addTo(map);
-  refreshPointList();
-  planRoute();
 }
 
 /** Clicked a cliff? Move to the nearest walkable cell (within 100 m). */
@@ -52,7 +57,7 @@ function snapToWalkable(idx) {
 function pointPopup(pt) {
   const { grid } = state;
   const i = state.points.indexOf(pt);
-  const info = `<p>Elevation ${grid.elev[pt.idx].toFixed(0)} m, local slope ${grid.slope[pt.idx].toFixed(0)}°</p>`;
+  const info = `<p>Elevation ${fmtElev(grid.elev[pt.idx])}, local slope ${grid.slope[pt.idx].toFixed(0)}°</p>`;
   const near = nearestStop(latlngOf(pt.idx));
   let el;
   if (near) {
@@ -78,7 +83,21 @@ export function removePoint(pt) {
   planRoute();
 }
 
+/** Cell indexes of the points "Clear all" removed, so Undo can bring them back. */
+let cleared = [];
+
+/** Undo: take back the last point, or (right after Clear all) bring all cleared points back. */
+export function undoPoint() {
+  if (state.points.length) { removePoint(state.points[state.points.length - 1]); return; }
+  if (!cleared.length) return;
+  cleared.forEach(placePoint);
+  cleared = [];
+  refreshPointList();
+  planRoute();
+}
+
 export function clearPoints() {
+  cleared = state.points.map((p) => p.idx);
   state.points.forEach((p) => map.removeLayer(p.marker));
   state.points = [];
   refreshPointList();
@@ -94,12 +113,13 @@ export function refreshPointList() {
     }));
   });
   $('pointList').innerHTML = points.map((pt, i) =>
-    `<li title="Elevation ${grid.elev[pt.idx].toFixed(0)} m"><span class="tag ${i === 0 ? 'start' : 'target'}">${i === 0 ? 'S' : i}</span>
+    `<li title="Elevation ${fmtElev(grid.elev[pt.idx])}"><span class="tag ${i === 0 ? 'start' : 'target'}">${i === 0 ? 'S' : i}</span>
       ${pointName(i)}
       <button type="button" class="rm" data-i="${i}" aria-label="Remove ${pointName(i).toLowerCase()}" title="Remove">×</button></li>`).join('');
   $('wpbar').dataset.count = points.length;   // CSS shows the list and route options once there are points
   refreshHint();
-  $('btnUndo').disabled = $('btnClear').disabled = points.length === 0;
+  $('btnClear').disabled = points.length === 0;
+  $('btnUndo').disabled = points.length === 0 && cleared.length === 0;
   sync3DMarkers();
 }
 

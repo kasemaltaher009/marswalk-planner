@@ -249,8 +249,10 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     nctx.clearRect(0, 0, w, h);
     imgs.forEach((im, i) => {
       nctx.globalAlpha = layers[i].opacity;
+      nctx.filter = layers[i].filter || 'none';
       nctx.drawImage(im, 0, 0, w, h);
     });
+    nctx.filter = 'none';
     nctx.globalAlpha = 1;
     const fade = textureShown && !matchMedia('(prefers-reduced-motion: reduce)').matches;
     textureShown = true;
@@ -385,9 +387,9 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   function sizeLabel(s) {
     s.material.sizeAttenuation = !pov;
     s.material.needsUpdate = true;
-    const k = pov ? POV_MIN : 48 * M;
+    const k = pov ? POV_MIN : 34 * M;
     s.scale.set(k, k, 1);
-    s.position.y = pov ? STAKE_M : 95 * M;
+    s.position.y = pov ? STAKE_M : 85 * M;
   }
   /** A badge on a 70 m pole at grid cell idx. In the astronaut view the pole is hidden (it could
    *  stand right in front of the eye), unless `stake` asks for a thin one, like a pin in the ground. */
@@ -456,6 +458,8 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   const STRIDE = 50 * M;                  // world distance per full stride (two steps) at this size
   const walkAnim = { phase: 0, amount: 0, last: new THREE.Vector3(), has: false };
   let follow = false;
+  let pullBack = false;           // at the start of a walk, back the follow camera off to FOLLOW_MIN_DIST
+  const FOLLOW_MIN_DIST = 220 * S;   // so the walker, pins and route read together (zooming in later is free)
   // Astronaut view: where the eye is and where it looks (smoothed in the render loop)
   const eyeGoal = new THREE.Vector3(), lookGoal = new THREE.Vector3(), lookNow = new THREE.Vector3();
   let hasEye = false;
@@ -473,6 +477,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       if (!walkAnim.has) astro.rotation.y = faceGoal;                  // first placement: face the path at once
     }
     astro.visible = !pov;
+    if (!walkAnim.has && followIt) pullBack = true;   // a walk begins: ease the camera back if it is close
     follow = followIt;
     eyeGoal.copy(toWorld(r, c, EYE_M));
     // only turn the head if the look-ahead point is a real direction (not where we stand)
@@ -791,6 +796,11 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       delta.copy(astro.position).sub(controls.target).multiplyScalar(0.06);
       controls.target.add(delta);
       camera.position.add(delta);
+      if (pullBack) {
+        const d = camera.position.distanceTo(controls.target);
+        if (d >= FOLLOW_MIN_DIST * 0.98) pullBack = false;
+        else camera.position.sub(controls.target).multiplyScalar(1 + (FOLLOW_MIN_DIST / d - 1) * 0.06).add(controls.target);
+      }
     }
     controls.update();
     // never orbit into a hillside (Mount Sharp rises kilometres above the area to the south-east)

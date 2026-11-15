@@ -102,5 +102,10 @@ export const fmtClock = (h) => {
   return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 };
 export const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`);
+/** The sand layer is tinted blue so it can't be mistaken for the orange slope colour (map CSS filter and 3D canvas filter). */
+export const SAND_FILTER = 'hue-rotate(178deg)';
+
+/** Elevation in whole metres, same style everywhere (plain minus, no thousands comma, never "-0"). */
+export const fmtElev = (m) => `${Math.round(m) + 0} m`;
 export const priorityName = (p) => (p === 100 ? 'Safest' : p === 0 ? 'Fastest' : `${p}% safety`);
 export const pointName = (i) => (i === 0 ? 'Start' : `Target ${i}`);

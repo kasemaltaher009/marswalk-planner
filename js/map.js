@@ -1,5 +1,5 @@
 /* The 2D map (Leaflet): base maps, overlay layers, and the readout under the mouse. */
-import { DATA, $, state, REDUCED_MOTION } from './state.js';
+import { DATA, $, state, REDUCED_MOTION, fmtElev, SAND_FILTER } from './state.js';
 import { cellAt, centreOfRC, rcOf } from './routing/grid.js';
 import { curiosityLayer } from './curiosity.js';
 import { addPoint } from './points.js';
@@ -51,6 +51,7 @@ export function setupMap() {
   layers.relief = img('hillshade.png', 1);
   layers.slope = img('slope.png', 0.7);
   layers.ground = img('ground.png', 0.8);
+  layers.ground?.on('add', (e) => { e.target.getElement().style.filter = SAND_FILTER; });
   layers.curiosity = state.curiosity ? curiosityLayer() : null;
 
   // Toolbar buttons → layers. Hide buttons for files that don't exist.
@@ -180,6 +181,6 @@ function showReadout(latlng) {
   if (idx < 0) { box.textContent = 'Outside the planning area'; return; }
   const s = grid.slope[idx], cost = grid.cost[idx];
   const cls = cost === 255 ? 'too steep to walk' : s < 10 ? 'easy walking' : s < 15 ? 'hard walking' : 'very hard walking';
-  box.innerHTML = `${grid.elev[idx].toFixed(0)} m, slope ${s.toFixed(0)}°, ${cls}` +
+  box.innerHTML = `${fmtElev(grid.elev[idx])}, slope ${s.toFixed(0)}°, ${cls}` +
     `<small>${latlng.lat.toFixed(5)}° ${latlng.lng.toFixed(5)}°E</small>`;
 }
