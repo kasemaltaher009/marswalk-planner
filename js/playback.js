@@ -61,8 +61,17 @@ export function startPlayback() {
  *  corner keeps the numbers that matter. "End walk" (or any change to the plan) brings them back.
  *  The "Hide panels" button shows or hides them (side panels and top bar) at any time. */
 function setWalkMode(on) {
+  walking = on;
   $('btnEnd').hidden = !on;
   setPanels(!on);
+  refreshPovNudge();
+}
+let walking = false;
+
+/** While a walk is on and you're watching from above, the Astronaut view button pulses
+ *  ("see the walk on foot") to invite you in. Called again whenever the view changes. */
+export function refreshPovNudge() {
+  $('btnPOV').classList.toggle('nudge', walking && state.activeView !== 'pov');
 }
 
 export function setPanels(show) {

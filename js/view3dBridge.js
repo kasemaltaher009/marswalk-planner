@@ -4,7 +4,7 @@
 import { state, $, setStatus, DATA, REDUCED_MOTION } from './state.js';
 import { map, overlayOn, setOverlay } from './map.js';
 import { addPoint, refreshHint } from './points.js';
-import { placeAstronaut, lookedAt, refreshAreaPicture } from './playback.js';
+import { placeAstronaut, lookedAt, refreshAreaPicture, refreshPovNudge } from './playback.js';
 
 let view3dLoading = null;
 const MODE_STATUS = {
@@ -25,6 +25,7 @@ export function showView(name) {
   $('btnMap').setAttribute('aria-pressed', name === 'map');
   $('btn3D').setAttribute('aria-pressed', name === '3d');
   $('btnPOV').setAttribute('aria-pressed', name === 'pov');
+  refreshPovNudge();
   moveDockPill();
   $('map').hidden = name !== 'map';
   $('view3d').hidden = name === 'map';

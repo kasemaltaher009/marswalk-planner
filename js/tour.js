@@ -65,8 +65,14 @@ const STEPS = [
     done: () => play.playing,
   },
   {
+    target: '#btnPOV',
+    title: 'Step into the astronaut view',
+    text: 'You are watching from above. Click Astronaut view to walk the route at eye height and see the ground the way you would in your suit.',
+    done: () => state.activeView === 'pov',
+  },
+  {
     title: 'You\'re walking on Mars',
-    text: 'Drag to look around in the astronaut view. "End walk" brings the panels back. Open this tour again any time with the Tour button at the top.',
+    text: 'Drag to look around; double-click to face the path again. The helmet display shows Curiosity\'s photo of where you are looking. "End walk" brings the panels back, and the Tour button at the top replays this tour.',
     last: true,
   },
 ];
