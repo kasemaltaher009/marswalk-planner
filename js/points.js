@@ -108,6 +108,6 @@ export function refreshHint() {
     : n === 0
       ? "Click the ground to place your start. The end of Curiosity's track is a good spot."
       : n <= MAX_TARGETS
-        ? `Click to add science target ${n}. Drag markers to adjust them, or click one to see Curiosity's photo from there.`
-        : 'All three targets are placed. Drag markers to adjust them, or click one to see its photo.';
+        ? `Click to add science target ${n}, or drag a marker to move it.`
+        : 'All targets placed. Drag a marker to move it.';
 }

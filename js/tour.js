@@ -34,20 +34,20 @@ const STEPS = [
     needs: onTerrain,
   },
   {
-    target: '#verdictBox',
+    target: '#summary',
     title: 'Go or no-go',
     text: 'Each system (suit time, daylight, cold, radiation, terrain) gives its call. All green means GO; anything orange or red tells you what to change.',
   },
   {
     target: '#statsBox',
     title: 'The walk in numbers',
-    text: 'Distance, time outside, climb and radiation dose. Each coloured leg of the route is listed here in order.',
+    text: 'Distance, time outside, climb and radiation dose. Each coloured leg of the route is listed here in order. Click Go to fold this card.',
   },
   {
     target: '#priority',
     ring: (el) => el.closest('section'),
     title: 'Fastest or safest?',
-    text: 'Drag this slider to trade safety for speed. The dashed gold line on the map is the route from the other end of the slider, compared in the table on the right.',
+    text: 'Drag this slider to trade safety for speed. The dashed gold line on the map is the route from the other end of the slider.',
   },
   {
     target: '.toolbar',

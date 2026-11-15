@@ -74,9 +74,12 @@ export function refreshPovNudge() {
   $('btnPOV').classList.toggle('nudge', walking && state.activeView !== 'pov');
 }
 
-export function setPanels(show) {
-  if (document.body.classList.contains('panels-hidden') === !show) return;
+/** Show or hide the side panels (and the verdict card). `animate: false` switches at once.
+ *  `alsoChange` runs inside the same animation, so whatever it shows or hides slides with the panels. */
+export function setPanels(show, { animate = true, alsoChange = () => {} } = {}) {
+  if (document.body.classList.contains('panels-hidden') === !show) { alsoChange(); return; }
   const apply = () => {
+    alsoChange();
     document.body.classList.toggle('panels-hidden', !show);
     $('btnPanels').setAttribute('aria-expanded', show);
     $('btnPanelsLabel').textContent = show ? 'Hide panels' : 'Show panels';
@@ -84,8 +87,14 @@ export function setPanels(show) {
   };
   // The browser animates between the two layouts: the side panels and top bar slide away
   // (or back) while the view grows (or shrinks). The pieces are named in style.css.
-  if (REDUCED_MOTION || !document.startViewTransition) apply();
-  else document.startViewTransition(apply);
+  if (!animate || REDUCED_MOTION || !document.startViewTransition) { apply(); return; }
+  // .vt-panels turns off the verdict card's backdrop blur for the slide: the browser would bake the
+  // blurred map behind it into the card's picture, a blurry patch sliding over the moving map
+  const root = document.documentElement;
+  root.classList.add('vt-panels');
+  const vt = document.startViewTransition(apply);
+  vt.ready.catch(() => {});   // skipped when toggled again mid-slide: fine, the new one takes over
+  vt.finished.finally(() => root.classList.remove('vt-panels'));
 }
 
 /** Pause (and show a picture of where the astronaut stopped).

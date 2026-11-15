@@ -32,7 +32,6 @@ export function planRoute({ animate = true } = {}) {
   setStatus('Planning the route…');
   // let the browser paint the status first; A* takes a moment
   planTimer = setTimeout(() => {
-    const t0 = performance.now();
     const p = priority();
     const ghostPriority = p > 50 ? 0 : 100;     // compare with the other end of the slider
     const chosen = routeFor(p);
@@ -42,7 +41,7 @@ export function planRoute({ animate = true } = {}) {
       setStatus('No safe route: a point is cut off by cliffs or slopes over 25°. Move it.', true);
     } else {
       state.plan = { chosen, ghost, ghostPriority };
-      setStatus(`${state.notice}Route planned in ${Math.round(performance.now() - t0)} ms.`);
+      setStatus(state.notice || 'Route ready.');
     }
     state.notice = '';
     drawRoutes(animate);

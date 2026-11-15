@@ -64,12 +64,13 @@ button, input, select { font: inherit; color: inherit; }
 .panels-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; }
 
 /* ---------- layout ---------- */
-.layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px 1fr 370px; }
+.layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px 1fr; }
 .rail { background: var(--panel); overflow-y: auto; }
 .rail-left { border-right: 1px solid var(--line); }
-.rail-right { border-left: 1px solid var(--line); }
 .rail section { padding: 16px 18px; border-bottom: 1px solid var(--line); }
 .rail h2 { font-size: 17px; font-weight: 650; margin-bottom: 10px; }
+.rail h2.wx-head { display: flex; align-items: center; gap: 8px; }
+.rail h2.wx-head select { width: auto; padding: 2px 6px; font-size: 14px; font-weight: 400; }
 .muted { color: var(--muted); font-weight: 400; }
 .hint { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
 
@@ -154,20 +155,24 @@ input[type=range] { width: 100%; }
 .chips button::before { content: ""; width: 8px; height: 8px; border-radius: 2px; border: 1.5px solid currentColor; }
 .chips button[aria-pressed="true"] { color: var(--text); }
 .chips button[aria-pressed="true"]::before { background: var(--cyan); border-color: var(--cyan); }
-/* legends: one small column flush against the stage's left edge, under the layer buttons */
+/* Photo / Relief and, under it, the legends: one small card exactly as wide (width 0 + min-width 100%
+   lets the buttons alone set the column's width), a thin line between groups */
+.basecol { display: inline-grid; gap: 6px; }
 .legends {
-  flex-basis: 100%; margin-left: -12px; pointer-events: none;
-  display: grid; grid-template-columns: max-content; justify-content: start; gap: 3px;
+  pointer-events: none; width: 0; min-width: 100%;
+  background: rgba(27, 31, 36, .9); border: 1px solid var(--line); border-radius: 6px; padding: 2px 0;
 }
-.legend {
-  display: flex; flex-direction: column; gap: 1px; background: rgba(27, 31, 36, .85);
-  border-radius: 0 6px 6px 0; padding: 4px 8px; font-size: 11px; line-height: 1.3; color: var(--text);
-}
+.legends:not(:has(> .legend:not([hidden]))) { display: none; }   /* no layer on: no empty card */
+.legend { display: flex; flex-direction: column; gap: 1px; padding: 4px 8px; white-space: nowrap; font-size: 11px; line-height: 1.3; color: var(--text); }
+.legends > .legend:not([hidden]) ~ .legend { border-top: 1px solid var(--line); }
 .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
 .legend i.dot { border-radius: 50%; border: 1px solid #fff; }
 .legend i.line { width: 16px; height: 3px; border-radius: 0; vertical-align: 3px; background: linear-gradient(90deg, #62d6e8 50%, #3f8ff0 50%); }
 .legend i.line.dash { background: repeating-linear-gradient(90deg, var(--gold) 0 5px, transparent 5px 8px); }
 .stage[data-view="pov"] #legendRoute { display: none; }
+/* the same empty-card check, counting the legends the views below hide with CSS (not [hidden]) */
+.stage:not([data-view="map"]) .legends:not(:has(> .legend:not([hidden], #legendCuriosity))) { display: none; }
+.stage[data-view="pov"] .legends:not(:has(> .legend:not([hidden], #legendCuriosity, #legendRoute))) { display: none; }
 
 /* Bottom centre, where the user is looking: notices on top of the waypoint bar, both above the player */
 .centre-stack {
@@ -379,28 +384,46 @@ body.panels-hidden .toolbar,
 body.panels-hidden .stage[data-view="3d"] .toolbar { top: 57px; right: 12px; }   /* 12 + 37 row + 8 gap */
 body.panels-hidden .layout { grid-template-columns: 1fr; }
 body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
+/* the start-up globe (until the first landing on the map, main.js): only the planet */
+body.globe-intro :is(.topctl, #wpbar, .viewdock) { display: none; }
 
-/* ---------- right rail: go / no-go ---------- */
-.verdict-box { --tone: var(--muted); border-top: 4px solid var(--tone); }
-.verdict-box.go { --tone: var(--go); }
-.verdict-box.caution { --tone: var(--caution); }
-.verdict-box.nogo { --tone: var(--nogo); }
-.verdict { margin: 0; font-size: 56px; font-weight: 800; font-stretch: var(--cond); line-height: 1; color: var(--tone); }
-.verdict-why { margin: 6px 0 12px; color: var(--text); }
-.poll { list-style: none; margin: 0; padding: 0; }
-.poll li { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+/* ---------- the verdict card over the view (top right, under the zoom / globe buttons) ---------- */
+.summary {
+  --tone: var(--muted);
+  position: absolute; top: 84px; right: 12px; z-index: 640; width: 290px;
+  max-height: calc(100% - 96px - var(--above-dock)); overflow-y: auto;
+  background: rgba(20, 24, 29, .62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, .1); border-top: 4px solid var(--tone); border-radius: 10px;
+  padding: 10px 14px 12px;
+}
+.summary.go { --tone: var(--go); }
+.summary.caution { --tone: var(--caution); }
+.summary.nogo { --tone: var(--nogo); }
+.summary > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.summary > summary::-webkit-details-marker { display: none; }
+.summary > summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 4px; }
+.verdict { font-size: 40px; font-weight: 800; font-stretch: var(--cond); line-height: 1; color: var(--tone); }
+.sum-line { color: var(--text); font-size: 14px; font-weight: 600; font-stretch: var(--semi); }
+.summary[open] .sum-line { display: none; }   /* the numbers below say it */
+.sum-fold { width: 16px; height: 16px; margin-left: auto; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; rotate: 180deg; transition: rotate .2s; }
+.summary[open] .sum-fold { rotate: 0deg; }
+.poll { list-style: none; margin: 8px 0 0; padding: 0; }
+.poll li { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 4px 0; border-top: 1px solid rgba(255, 255, 255, .08); font-size: 14px; }
 .poll .sys { font-weight: 600; font-stretch: var(--semi); }
-.poll .call { font-weight: 800; font-stretch: var(--cond); font-size: 17px; text-align: right; }
+.poll .call { font-weight: 800; font-stretch: var(--cond); text-align: right; }
 .poll .go .call { color: var(--go); }
 .poll .caution .call { color: var(--caution); }
 .poll .nogo .call { color: var(--nogo); }
-.poll small { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
+.poll small { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
+#statsBox { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .12); }
+body.panels-hidden .summary { display: none; transition: none; }   /* gone at once: the panels' slide animates it */
+.stage[data-globe="true"]:not([data-view="map"]) .summary { display: none; }   /* not over the Mars globe */
 
-.stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px 10px; margin: 0; }
-.stats dt { font-size: 13px; color: var(--muted); }
-.stats dd { margin: 0; font-size: 21px; font-weight: 650; font-stretch: var(--semi); }
+.stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 10px; margin: 0; }
+.stats dt { font-size: 12px; color: var(--muted); }
+.stats dd { margin: 0; white-space: nowrap; font-size: 16px; font-weight: 650; font-stretch: var(--semi); }
 /* legs of the walk, in order, with the colour each one has on the map */
-.legs { list-style: none; margin: 14px 0 0; padding: 0; font-size: 14px; }
+.legs { list-style: none; margin: 10px 0 0; padding: 0; font-size: 14px; }
 .legs li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
 .legs i { width: 18px; height: 4px; border-radius: 2px; flex: none; }
 .legs span { margin-left: auto; color: var(--muted); }
@@ -411,14 +434,6 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
   clip-path: polygon(15% 5%, 95% 50%, 15% 95%, 40% 50%);
 }
 
-.compare { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 8px; }
-.compare th, .compare td { text-align: right; padding: 5px 0 5px 8px; border-bottom: 1px solid var(--line); }
-.compare th:first-child, .compare td:first-child { text-align: left; padding-left: 0; color: var(--muted); font-weight: 400; }
-.compare thead th { font-stretch: var(--semi); font-weight: 650; }
-.compare thead th:nth-child(2) { color: var(--cyan); }
-.compare thead th:nth-child(3) { color: var(--gold); }
-.compare td.better { color: var(--text); font-weight: 650; }
-.compare td { color: var(--muted); }
 
 .chartbox { position: relative; height: 170px; }
 .wx { display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; margin: 0 0 10px; font-size: 14px; }
@@ -497,15 +512,15 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
 
 /* Pop-ups over the view: fade and rise in when shown, fade and sink when hidden.
    [hidden] is display: none, so display flips at the end of the exit (allow-discrete). */
-.toast, .work, .player, .hud, .legend, .readout, .globe-btn, .tour, .end, .hud-photo {
+.toast, .work, .player, .hud, .legend, .readout, .globe-btn, .tour, .end, .hud-photo, .summary {
   transition: opacity .26s var(--ease-out), transform .26s var(--ease-out), display .26s allow-discrete;
 }
 /* hidden by CSS rules, not [hidden]: they only fade in (an exit would just linger) */
 .wpbar, .wp-row, .wp-opts { transition: opacity .26s var(--ease-out), transform .26s var(--ease-out); }
-:is(.toast, .work, .player, .hud, .tour, .end, .globe-btn)[hidden] { opacity: 0; transform: translateY(8px); }
+:is(.toast, .work, .player, .hud, .tour, .end, .globe-btn, .summary)[hidden] { opacity: 0; transform: translateY(8px); }
 :is(.legend, .readout, .hud-photo)[hidden] { opacity: 0; }
 @starting-style {
-  :is(.toast, .wpbar, .player, .hud, .tour, .end, .globe-btn) { opacity: 0; transform: translateY(10px); }
+  :is(.toast, .wpbar, .player, .hud, .tour, .end, .globe-btn, .summary) { opacity: 0; transform: translateY(10px); }
   :is(.legend, .readout, .wp-row, .wp-opts, .hud-photo) { opacity: 0; }
   .points li { opacity: 0; transform: scale(.6); }
   .rail section:not([hidden]) { opacity: 0; transform: translateY(6px); }
@@ -528,7 +543,9 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
 /* Hide / Show panels: one View Transition (setPanels in playback.js). The side panels slide off
    their edges, the top bar lifts away, the view and the floating buttons glide to their new places. */
 .rail-left { view-transition-name: rail-left; }
-.rail-right { view-transition-name: rail-right; }
+.viewdock { view-transition-name: viewdock; }   /* rises from the bottom after the first landing */
+.summary { view-transition-name: summary; }   /* the verdict card slides off to the right */
+.vt-panels .summary { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(20, 24, 29, .82); }   /* see setPanels */
 .topbar { view-transition-name: topbar; }
 .topctl { view-transition-name: topctl; }
 .stage { view-transition-name: stage; }
@@ -541,15 +558,17 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
 ::view-transition-new(stage) { animation: none; }
 ::view-transition-old(rail-left):only-child { animation: .42s var(--ease-out) both vt-out-left; }
 ::view-transition-new(rail-left):only-child { animation: .42s var(--ease-out) both vt-in-left; }
-::view-transition-old(rail-right):only-child { animation: .42s var(--ease-out) both vt-out-right; }
-::view-transition-new(rail-right):only-child { animation: .42s var(--ease-out) both vt-in-right; }
 ::view-transition-old(topbar):only-child { animation: .3s var(--ease-out) both vt-out-up; }
 ::view-transition-new(topbar):only-child { animation: .42s var(--ease-out) both vt-in-up; }
+::view-transition-old(summary):only-child { animation: .42s var(--ease-out) both vt-out-right; }
+::view-transition-new(summary):only-child { animation: .42s var(--ease-out) both vt-in-right; }
 @keyframes vt-out-left { to { transform: translateX(-100%); opacity: .4; } }
+@keyframes vt-out-right { to { transform: translateX(calc(100% + 24px)); opacity: 0; } }
+@keyframes vt-in-right { from { transform: translateX(calc(100% + 24px)); opacity: 0; } }
 @keyframes vt-in-left { from { transform: translateX(-100%); opacity: .4; } }
-@keyframes vt-out-right { to { transform: translateX(100%); opacity: .4; } }
-@keyframes vt-in-right { from { transform: translateX(100%); opacity: .4; } }
+::view-transition-new(viewdock):only-child { animation: .42s var(--ease-out) both vt-in-down; }
 @keyframes vt-out-up { to { transform: translateY(-100%); opacity: 0; } }
+@keyframes vt-in-down { from { transform: translateY(calc(100% + 14px)); opacity: 0; } }
 @keyframes vt-in-up { from { transform: translateY(-100%); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -561,8 +580,7 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
 
 /* ---------- narrow screens: stack ---------- */
 @media (max-width: 1100px) {
-  .layout { grid-template-columns: 260px 1fr 320px; }
-  .verdict { font-size: 46px; }
+  .layout { grid-template-columns: 260px 1fr; }
 }
 @media (max-width: 900px) {
   body { display: block; height: auto; }
@@ -572,7 +590,6 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
   .stage { order: -1; height: 72vh; }
   body.panels-hidden .stage { height: 100vh; height: 100dvh; }   /* walk mode: the view fills the screen */
   .rail { border: 0; border-top: 1px solid var(--line); overflow: visible; }
-  .stats { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 600px) {
   .brand p { display: none; }
@@ -585,6 +602,7 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
   .toolbar { right: 56px; }
   .chips button { padding: 5px 8px; white-space: nowrap; }
   #legendCuriosity { display: none; }
+  .legends:not(:has(> .legend:not([hidden], #legendCuriosity))) { display: none; }
   /* panels hidden: row 1 must fit on one line beside the zoom control, so tighter view buttons
      and an icon-only Show panels (its label stays for screen readers) */
   body.panels-hidden .panels-btn { padding: 6px 9px; }
@@ -593,6 +611,14 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
   .speed-name { display: none; }
   .speed input { width: 60px; }
 }
+/* small views: a narrower card that starts lower-key (fold it by clicking the verdict) */
+@container (max-width: 760px) {
+  .summary { width: 230px; padding: 8px 10px 10px; }
+  .verdict { font-size: 30px; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .stats dd { font-size: 15px; }
+}
+
 /* the details button exists only in the narrow layout below */
 .hud-more { display: none; }
 

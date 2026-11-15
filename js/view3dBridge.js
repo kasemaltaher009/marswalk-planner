@@ -4,12 +4,13 @@
 import { state, $, setStatus, DATA, REDUCED_MOTION } from './state.js';
 import { map, overlayOn, setOverlay } from './map.js';
 import { addPoint, refreshHint } from './points.js';
-import { placeAstronaut, lookedAt, refreshAreaPicture, refreshPovNudge } from './playback.js';
+import { placeAstronaut, lookedAt, refreshAreaPicture, refreshPovNudge, setPanels } from './playback.js';
 
 let view3dLoading = null;
+let introEnding = false;   // the start-up globe's panels / view switch are on their way in (showView)
 const MODE_STATUS = {
-  local: '3D terrain: drag to orbit, scroll to zoom, click the ground to add a point.',
-  globe: 'Mars globe: drag to spin, scroll to zoom. Click Gale Crater to fly down to the walk.',
+  local: '3D terrain: drag to orbit, scroll to zoom.',
+  globe: 'Mars globe: drag to spin, scroll to zoom.',
 };
 let photoPin = null;    // where Curiosity took the photos in the helmet display (cell index or null)
 // The slope layer has its own on/off setting in the astronaut view (off at first: it hides the ground).
@@ -32,12 +33,18 @@ export function showView(name) {
   refreshAreaPicture();   // the astronaut view shows the photo of where you look, the others all photos
   refreshHint();
   if (name === 'map') {
+    // first landing after the start-up globe: the panels, hint card, top buttons and view switch slide in
+    // (once: the class only goes when the slide starts, and landing can call this twice before that)
+    if (document.body.classList.contains('globe-intro') && !introEnding) {
+      introEnding = true;
+      setPanels(true, { alsoChange: () => document.body.classList.remove('globe-intro') });
+    }
     state.view3d?.stop();
     map.invalidateSize();
     // a 3D how-to left in the status line would be wrong here (route messages stay)
     const shown = $('status').textContent;
     if (Object.values(MODE_STATUS).includes(shown) || shown.startsWith('Astronaut view:') || shown.startsWith('Building the 3D')) {
-      setStatus('Map: click to place your start, then up to three science targets.');
+      setStatus('');
     }
     return;
   }
@@ -73,7 +80,7 @@ export function showView(name) {
     sync3DTexture();
     if (state.activeView === 'pov') {
       placeAstronaut();
-      setStatus('Astronaut view: press Play walk to walk the route. Drag to look around, double-click to face the path again.');
+      setStatus('Astronaut view: drag to look around, double-click to face the path.');
     } else {
       setStatus(MODE_STATUS[view3d.mode] ?? MODE_STATUS.local);
     }

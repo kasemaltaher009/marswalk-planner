@@ -3,7 +3,7 @@
  *
  * Flow: load web/data/* → map + layers → user places start + targets
  *       → A* on cost_grid.json for every pair of points → best visiting order
- *       → go/no-go poll, stats, comparison with the other end of the priority slider
+ *       → go/no-go poll, stats (the other end of the priority slider is drawn dashed on the map)
  *       → optional playback (astronaut walks the route with a helmet display) and 3D view.
  *
  * Where things live (all in web/js/):
@@ -25,7 +25,7 @@ import { setupMap } from './map.js';
 import { latestStop } from './curiosity.js';
 import { refreshPointList, removePoint, clearPoints } from './points.js';
 import { planRoute } from './route.js';
-import { renderSummary } from './summary.js';
+import { renderSummary, setupSummaryFit } from './summary.js';
 import { setupWeather, renderWeather } from './weather.js';
 import { play, startPlayback, stopPlayback, setPanels, scrubTo, skipWork } from './playback.js';
 import { showView, switchView } from './view3dBridge.js';
@@ -61,11 +61,18 @@ async function init() {
   setupControls();
   setupWeather();
   setupTour();
+  setupSummaryFit();
   refreshPointList();
+  // small views: the verdict card starts folded to one line, so it doesn't cover the waypoints
+  if (document.querySelector('.stage').clientWidth <= 760) $('summary').open = false;
   $('bBlocked').textContent = `${grid.blockedPct.toFixed(0)}%`;
   if (state.curiosity) $('bLastSol').textContent = latestStop().properties.sol;
   $('bSize').textContent = `${config.size_m / 1000} × ${config.size_m / 1000} km`;
   setStatus(`Ready. ${grid.blockedPct.toFixed(0)}% of the area is too steep to walk.`);
+  // start on a clean Mars globe: no panels, hint card, top buttons or view switch (body.globe-intro);
+  // they all come in once you land on the map (showView in view3dBridge.js)
+  setPanels(false, { animate: false });
+  document.body.classList.add('globe-intro');
   showView('3d');   // start on the Mars globe (the 3D view opens there); click Gale Crater to fly down
   if (returning) closeBriefing();
 }
@@ -115,9 +122,9 @@ function setupControls() {
   // Route priority slider: re-plan live while dragging (no draw-in animation)
   const describe = () => {
     const p = priority();
-    $('priorityText').textContent = p === 100 ? 'Safest: stays on gentle, firm ground even if the walk is longer.'
-      : p === 0 ? 'Fastest: the quickest walk that avoids cliffs, even over steeper or sandier ground.'
-      : `${p}% safety: a balance between a quick walk and gentle, firm ground.`;
+    $('priorityText').textContent = p === 100 ? 'Stays on gentle, firm ground, even if longer.'
+      : p === 0 ? 'Quickest walk that avoids cliffs, even over steep or sandy ground.'
+      : `${p}% safety: a balance of speed and gentle ground.`;
   };
   $('priority').addEventListener('input', () => { describe(); planRoute({ animate: false }); });
 
