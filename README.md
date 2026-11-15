@@ -1,8 +1,8 @@
-# MarsWalk Planner
+# Ariadne — Marswalk Planner
 
 NASA Space Apps Challenge 2026 — "Interplanetary Survival Guide: Martian Map" — Team Alien X (Mansoura, Egypt).
 
-MarsWalk Planner combines NASA's Mars data into one map that plans the safest walking route to
+Ariadne combines NASA's Mars data into one map that plans the safest walking route to
 science targets on Mount Sharp, Gale Crater, and shows the astronaut the time, risks and view
 before they step outside.
 

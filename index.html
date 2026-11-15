@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MarsWalk Planner</title>
-  <meta name="description" content="Plan the safest Marswalk to science targets on Mount Sharp, Gale Crater, using NASA Mars data.">
+  <title>Ariadne — Marswalk Planner</title>
+  <meta name="description" content="Ariadne plans the safest Marswalk to science targets on Mount Sharp, Gale Crater, using NASA Mars data.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wdth,wght@50..125,300..800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Saira:wdth,wght@50..125,300..800&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css">
   <!-- three.js for the 3D view (loaded only when the 3D tab is opened) -->
@@ -26,13 +27,10 @@
         <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5 2.5v11M11 2.5v11"/></svg>
         <span id="btnPanelsLabel" class="sr-only">Hide panels</span>
       </button>
-      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M16 3C9 3 4 8.5 4 15.5V24c0 2.8 2.2 5 5 5h14c2.8 0 5-2.2 5-5v-8.5C28 8.5 23 3 16 3Z" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M8 15c0-4.4 3.6-7.5 8-7.5s8 3.1 8 7.5v2.5c0 1.4-1.1 2.5-2.5 2.5h-11C9.1 20 8 18.9 8 17.5Z" fill="currentColor"/>
-      </svg>
+      <img class="mark" src="logo.svg" alt="">
       <div>
-        <h1>MarsWalk Planner</h1>
-        <p>Mount Sharp, Gale Crater</p>
+        <h1>Ariadne</h1>
+        <p>Marswalk planner · Mount Sharp, Gale Crater</p>
       </div>
     </div>
     <div class="topctl">
@@ -43,6 +41,42 @@
     </div>
     <p class="status" id="status" role="status">Loading NASA data…</p>
   </header>
+
+  <!-- Title over the start-up globe (body.globe-intro); fades when you click Gale Crater -->
+  <div class="intro" id="intro">
+    <div class="intro-brand">
+      <svg class="intro-mark" viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="ring" cx="100" cy="100" r="90" fill="none" stroke="#E2683C" stroke-width="1.6" opacity="0.7"/>
+        <path class="ring" d="M100 4 V14 M100 186 V196 M4 100 H14 M186 100 H196" stroke="#E2683C" stroke-width="1.6" opacity="0.7"/>
+        <g fill="none" stroke="#E2683C" stroke-width="1.4">
+          <ellipse class="c c1" cx="100" cy="124" rx="78" ry="58" opacity="0.32"/>
+          <ellipse class="c c2" cx="100" cy="114" rx="62" ry="47" opacity="0.42"/>
+          <ellipse class="c c3" cx="100" cy="104" rx="46" ry="36" opacity="0.52"/>
+          <ellipse class="c c4" cx="100" cy="94" rx="30" ry="24" opacity="0.64"/>
+          <ellipse class="c c5" cx="100" cy="84" rx="15" ry="12" opacity="0.78"/>
+        </g>
+        <path class="leg" d="M100 84 L142 170" fill="none" stroke="#E2683C" stroke-width="3.6" stroke-linecap="round" stroke-dasharray="2 7"/>
+        <path class="leg" d="M71 132 Q97 123 123 132" fill="none" stroke="#E2683C" stroke-width="5" stroke-linecap="round"/>
+        <circle class="leg" cx="142" cy="170" r="4.5" fill="#E2683C"/>
+        <path class="thread" pathLength="1" d="M58 170 L74 148 L64 140 L84 118 L76 110 L94 92 L100 84" fill="none" stroke="#5FE3E0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle class="start" cx="58" cy="170" r="6" fill="#5FE3E0"/>
+        <g class="summit">
+          <circle cx="100" cy="84" r="9" fill="#0B0E14" stroke="#5FE3E0" stroke-width="2.4"/>
+          <circle cx="100" cy="84" r="3.6" fill="#5FE3E0"/>
+        </g>
+      </svg>
+      <div class="intro-words">
+        <p class="intro-name">Ariadne</p>
+        <p class="intro-tag">A safe thread across Mars</p>
+      </div>
+    </div>
+    <i class="intro-bracket tl"></i><i class="intro-bracket tr"></i><i class="intro-bracket bl"></i><i class="intro-bracket br"></i>
+    <p class="intro-corner tl">Mars · Gale Crater · Aeolis Mons</p>
+    <p class="intro-corner tr">4.826° S&ensp;137.389° E</p>
+    <p class="intro-corner bl">Marswalk planner · NASA Space Apps 2026</p>
+    <p class="intro-corner br">Data: NASA · JPL · USGS</p>
+    <p class="intro-cta"><i></i>Click Gale Crater to begin</p>
+  </div>
 
   <main class="layout">
     <!-- Left rail: what the astronaut sets up, and the ground and weather it will meet -->
@@ -88,6 +122,11 @@
     <div class="stage" data-view="map" data-globe="true">
       <div id="map" aria-label="Map of the walking area"></div>
       <div id="view3d" hidden aria-label="3D view of the walking area"></div>
+      <!-- on the map; the 3D view has its own (view3d.js) -->
+      <button type="button" id="btnMars" class="globe-btn map-mars" title="Zoom out to Mars" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="M2.6 6.4c2.2 1 4.6.4 6.2-.6s3.4-1.2 4.6-.4M3.2 11c1.8-.6 3.4.2 5 .8s3.2.2 4.6-1"/></svg>
+        <span>Zoom out to Mars</span>
+      </button>
       <div class="veil" id="veil" aria-hidden="true"></div>
 
       <div class="toolbar">
@@ -243,7 +282,8 @@
   <!-- Mission briefing shown on load -->
   <div class="briefing" id="briefing" role="dialog" aria-modal="true" aria-labelledby="briefTitle">
     <div class="brief-card">
-      <p class="brief-kicker">Mission briefing</p>
+      <img class="brief-logo" src="logo.svg" alt="">
+      <p class="brief-kicker">Ariadne · Mission briefing</p>
       <h2 id="briefTitle">Plan a safe walk on Mount Sharp</h2>
       <p>Curiosity has been climbing Mount Sharp in Gale Crater since 2014. This planner combines its measurements with orbital maps to find the safest walking route to the science targets you choose, then checks the walk against your suit's limits before you step outside.</p>
       <dl class="brief-facts">

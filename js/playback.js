@@ -67,7 +67,9 @@ function setWalkMode(on) {
   $('btnEnd').hidden = !on;
   // body.walking: the verdict card goes too (the helmet display is up); with only the panels hidden
   // it stays as a compact verdict line (style.css)
-  setPanels(!on, { alsoChange: () => document.body.classList.toggle('walking', on) });
+  // (on the start screen the panels stay hidden: they come back when you land on the map)
+  const show = !on && !document.body.classList.contains('globe-intro');
+  setPanels(show, { alsoChange: () => document.body.classList.toggle('walking', on) });
   refreshPovNudge();
 }
 let walking = false;

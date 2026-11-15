@@ -1,4 +1,4 @@
-/* MarsWalk Planner — the astronaut figure for the 3D view (three.js shapes, no model file).
+/* Ariadne (Marswalk planner) — the astronaut figure for the 3D view (three.js shapes, no model file).
  * Made to replace the cyan "walking sphere" in view3d.js: about 62 units tall before view3d's `M`
  * scale (≈ 3 cm per unit, so a 1.9 m suited person), feet at y = 0, facing +z. Turn it to face a
  * direction with `figure.rotation.y = Math.atan2(dx, dz)` (dx east, dz south).

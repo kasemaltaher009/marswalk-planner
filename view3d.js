@@ -1,4 +1,4 @@
-/* MarsWalk Planner — 3D terrain view (three.js).
+/* Ariadne (Marswalk planner) — 3D terrain view (three.js).
  * The 1 m DEM (via cost_grid.json's 5 m elevations) becomes a mesh, the HiRISE photo
  * (plus any active overlays) is draped on it, and routes, markers and the astronaut
  * are drawn on top. Around it, lower-detail ground reaches 15 km out (context_elev.png +
@@ -23,7 +23,7 @@ const EYE_M = 8;
 /** config: config.json (its `context`, `globe` and `center` parts are used here).
  *  onMode('globe' | 'local') tells the page when the view switches between the globe and the terrain.
  *  onLand: optional, for the first fly-in from the globe, which then ends looking straight down on
- *  the area. landing() is called as the descent starts and says what the 2D map will show
+ *  the area (every fly-in, not only the first). start() (optional) is called as the dive from the globe begins; landing() is called as the descent starts and says what the 2D map will show
  *  ({x, y} = its centre, h = its height, as fractions of the area; y from the north edge);
  *  done() is awaited at the bottom (the page fades over to the map there). */
 export function createView3D(container, { grid, onPick, config = null, dataUrl = 'data/', onMode = () => {}, onLook = () => {}, onLand = null }) {
@@ -634,11 +634,13 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   }
 
   /** Globe → dive to Gale Crater → through the haze → down to the terrain.
-   *  The first fly-in (with onLand) lands looking straight down and hands over to the 2D map. */
+   *  With onLand, every fly-in from the globe (the page's start screen) lands looking straight down
+   *  and hands over to the 2D map. */
   async function flyIn() {
     if (!globeOK || mode !== 'globe' || flying) return;
-    const toMap = !!onLand && back === HOME && !pov;
+    const toMap = !!onLand && !pov;
     flying = true; updateGlobeButton();
+    if (toMap) onLand.start?.();
     globe.controls.enabled = false;
     const d0 = globe.camera.position.length(), u0 = globe.camera.position.clone().normalize();
     await animate(2600, (k) => {
@@ -684,6 +686,16 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     });
     if (mode === 'globe') globe.controls.enabled = true;
     endFlight();
+  }
+
+  /** "Zoom out to Mars" from the 2D map: start straight above what the map shows (the page fades the
+   *  map over to this view meanwhile), then fly out to the globe as usual. */
+  function zoomOutFrom(view) {
+    if (!globeOK || mode !== 'local' || flying || pov) return Promise.resolve();
+    const start = topDown(view);
+    camera.position.copy(start.pos); controls.target.copy(start.target); camera.lookAt(start.target);
+    fogMix(1);   // no haze up there, like the map
+    return flyOut();
   }
 
   /** Straight to the terrain, without flying (the astronaut view needs it). */
@@ -843,7 +855,8 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       if (!introDone) intro();
     },
     stop() { running = false; },
-    toTopDown, fromTopDown, restoreOrbit,
+    toTopDown, fromTopDown, restoreOrbit, zoomOutFrom,
     get mode() { return mode; },
+    get globeOK() { return globeOK; },   // the Mars globe loaded (else there's nothing to zoom out to)
   };
 }

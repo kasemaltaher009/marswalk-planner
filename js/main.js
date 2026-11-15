@@ -1,4 +1,4 @@
-/* MarsWalk Planner — plans the safest walking route on Mount Sharp.
+/* Ariadne (Marswalk planner) — plans the safest walking route on Mount Sharp.
  * Code written with help from Claude (Anthropic), an AI coding assistant; reviewed and tested by the team.
  *
  * Flow: load web/data/* → map + layers → user places start + targets
@@ -28,7 +28,7 @@ import { planRoute } from './route.js';
 import { renderSummary, setupSummaryFit } from './summary.js';
 import { setupWeather, renderWeather } from './weather.js';
 import { play, startPlayback, stopPlayback, setPanels, scrubTo, skipWork } from './playback.js';
-import { showView, switchView } from './view3dBridge.js';
+import { showView, switchView, zoomOutToMars } from './view3dBridge.js';
 import { setupTour, maybeStartTour } from './tour.js';
 
 async function init() {
@@ -184,6 +184,7 @@ function setupControls() {
   $('scrub').addEventListener('input', () => scrubTo(Number($('scrub').value)));
 
   $('btnMap').addEventListener('click', () => switchView('map'));   // glides and crossfades with the 3D view
+  $('btnMars').addEventListener('click', zoomOutToMars);            // map → up and out to the globe
   $('btn3D').addEventListener('click', () => switchView('3d'));
   $('btnPOV').addEventListener('click', () => switchView('pov'));
 }
