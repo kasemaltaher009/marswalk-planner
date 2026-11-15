@@ -21,6 +21,11 @@
 <body>
   <header class="topbar">
     <div class="brand">
+      <!-- the panels toggle sits in the same corner whether the panels are shown or hidden -->
+      <button type="button" id="btnPanels" class="panels-btn" aria-expanded="true" aria-controls="railLeft summary" title="Hide panels">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5 2.5v11M11 2.5v11"/></svg>
+        <span id="btnPanelsLabel" class="sr-only">Hide panels</span>
+      </button>
       <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
         <path d="M16 3C9 3 4 8.5 4 15.5V24c0 2.8 2.2 5 5 5h14c2.8 0 5-2.2 5-5v-8.5C28 8.5 23 3 16 3Z" fill="none" stroke="currentColor" stroke-width="2"/>
         <path d="M8 15c0-4.4 3.6-7.5 8-7.5s8 3.1 8 7.5v2.5c0 1.4-1.1 2.5-2.5 2.5h-11C9.1 20 8 18.9 8 17.5Z" fill="currentColor"/>
@@ -31,10 +36,6 @@
       </div>
     </div>
     <div class="topctl">
-      <button type="button" id="btnPanels" class="panels-btn" aria-expanded="true" aria-controls="railLeft summary">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5 2.5v11M11 2.5v11"/></svg>
-        <span id="btnPanelsLabel">Hide panels</span>
-      </button>
       <button type="button" id="btnTour" class="panels-btn" title="Show me how to use the planner">
         <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M6.2 6.2a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4M8 11.3v.2"/></svg>
         <span>Tour</span>

@@ -8,7 +8,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGlobe, latLonToVec } from './globe3d.js';
+import { createGlobe } from './globe3d.js';
 import { createAstronaut } from './astronaut3d.js';
 
 const EXAGGERATION = 1.5;   // vertical exaggeration so the relief reads at a glance
@@ -689,7 +689,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     camera.position.copy(back.pos); controls.target.copy(back.target);   // not up in the haze
   }
 
-  /** First opening: start on the globe, Gale Crater in view. The user spins it, then clicks
+  /** First opening: start on the globe, Gale Crater in the centre. The user spins it, then clicks
    *  Gale (or "Fly to Gale Crater") to fly down to the walk. */
   let introDone = false;
   let introPending = true;           // nothing is drawn until we know: globe first, or terrain if it can't load
@@ -703,7 +703,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     updateGlobeButton();
     if (pov || flying) { setMode('local'); return; }   // the astronaut stands on the terrain
     setMode('globe');
-    globe.pose(latLonToVec(config.center.lat + 12, config.center.lon - 30), ALT_HIGH);
+    globe.pose(globe.siteDir, ALT_HIGH);   // Gale Crater in the middle of the screen
     globe.controls.enabled = true;
   }
 

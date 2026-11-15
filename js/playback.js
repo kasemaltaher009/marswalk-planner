@@ -82,7 +82,7 @@ export function setPanels(show, { animate = true, alsoChange = () => {} } = {}) 
     alsoChange();
     document.body.classList.toggle('panels-hidden', !show);
     $('btnPanels').setAttribute('aria-expanded', show);
-    $('btnPanelsLabel').textContent = show ? 'Hide panels' : 'Show panels';
+    $('btnPanelsLabel').textContent = $('btnPanels').title = show ? 'Hide panels' : 'Show panels';
     map?.invalidateSize();          // the 3D view notices the new size by itself
   };
   // The browser animates between the two layouts: the side panels and top bar slide away

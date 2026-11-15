@@ -62,6 +62,8 @@ button, input, select { font: inherit; color: inherit; }
 }
 .panels-btn:hover { color: var(--text); border-color: var(--muted); }
 .panels-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+#btnPanels { padding: 9px; }   /* icon only (the label is for screen readers and the tooltip) */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* ---------- layout ---------- */
 .layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px 1fr; }
@@ -374,18 +376,20 @@ body:has(#btnEnd:not([hidden])) .wpbar { display: none; }   /* the astronaut vie
 /* ---------- side panels hidden (button in the top bar, or during a walk) ---------- */
 body.panels-hidden .rail { display: none; }
 /* The brand and status line go too. Two rows on one left edge, so nothing can overlap at any width:
-   row 1 = Show panels (zoom or globe button at the far right; the view switch stays at the bottom),
+   row 1 = the panels button, left exactly where it is in the top bar (zoom or globe button at the far
+   right; the view switch stays at the bottom),
    row 2 = base map + layer buttons, legends under them. */
 body.panels-hidden .topbar { display: contents; }
-body.panels-hidden .brand, body.panels-hidden .status { display: none; }
-body.panels-hidden .topctl { position: fixed; top: 12px; left: 12px; z-index: 1100; gap: 8px; flex-wrap: nowrap; }
-body.panels-hidden .topctl > * { background: rgba(27, 31, 36, .9); }
+body.panels-hidden .brand { display: contents; }
+body.panels-hidden :is(.brand > :not(#btnPanels), .status, .topctl) { display: none; }
+/* exactly where it sits in the top bar (10px padding, centred on the 43px brand) */
+body.panels-hidden #btnPanels { position: fixed; top: 13.5px; left: 18px; z-index: 1100; background: rgba(27, 31, 36, .9); }
 body.panels-hidden .toolbar,
 body.panels-hidden .stage[data-view="3d"] .toolbar { top: 57px; right: 12px; }   /* 12 + 37 row + 8 gap */
 body.panels-hidden .layout { grid-template-columns: 1fr; }
 body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
 /* the start-up globe (until the first landing on the map, main.js): only the planet */
-body.globe-intro :is(.topctl, #wpbar, .viewdock) { display: none; }
+body.globe-intro :is(#btnPanels, .topctl, #wpbar, .viewdock) { display: none; }
 
 /* ---------- the verdict card over the view (top right, under the zoom / globe buttons) ---------- */
 .summary {
@@ -496,7 +500,6 @@ body.panels-hidden .summary { display: none; transition: none; }   /* gone at on
   box-shadow: 0 0 0 9999px rgba(10, 12, 15, .45), 0 0 18px rgba(98, 214, 232, .6);
 }
 @keyframes tour-pulse { 50% { opacity: .25; } }
-body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating corner row small */
 
 /* ---------- motion ---------- */
 /* Map layers fade in and out (map.js: showLayer / hideLayer). Leaflet's own zoom transition wins while zooming. */
@@ -548,6 +551,7 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
 .vt-panels .summary { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(20, 24, 29, .82); }   /* see setPanels */
 .topbar { view-transition-name: topbar; }
 .topctl { view-transition-name: topctl; }
+#btnPanels { view-transition-name: panels-btn; }   /* stays put while the top bar slides */
 .stage { view-transition-name: stage; }
 .stage .toolbar { view-transition-name: toolbar; }
 ::view-transition-group(*) { animation-duration: .42s; animation-timing-function: var(--ease-out); }
@@ -594,6 +598,7 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
 @media (max-width: 600px) {
   .brand p { display: none; }
   .brand h1 { font-size: 20px; }
+  body.panels-hidden #btnPanels { top: 10px; }   /* the brand is one line here (36px), so the button is at the bar's padding */
   .topbar { grid-template-columns: 1fr; gap: 10px; }
   .topctl { justify-self: start; }
   .stage { --dock-h: 50px; }
@@ -603,10 +608,6 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
   .chips button { padding: 5px 8px; white-space: nowrap; }
   #legendCuriosity { display: none; }
   .legends:not(:has(> .legend:not([hidden], #legendCuriosity))) { display: none; }
-  /* panels hidden: row 1 must fit on one line beside the zoom control, so tighter view buttons
-     and an icon-only Show panels (its label stays for screen readers) */
-  body.panels-hidden .panels-btn { padding: 6px 9px; }
-  body.panels-hidden #btnPanelsLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .player .check { display: none; }   /* follow stays on */
   .speed-name { display: none; }
   .speed input { width: 60px; }
