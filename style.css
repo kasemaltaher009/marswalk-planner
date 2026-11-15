@@ -90,15 +90,16 @@ input[type=number], input[type=time], select {
 input[type=range] { width: 100%; }
 .range-ends { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin: -2px 0 8px; }
 
-.points { list-style: none; margin: 0; padding: 0; }
+/* the placed points: a row of chips in the waypoint bar */
+.points { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .points li {
-  display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px;
+  display: flex; align-items: center; gap: 6px; padding: 2px 2px 2px 3px; border-radius: 999px;
+  background: var(--raised); font-size: 13px; white-space: nowrap;
 }
-.points li:last-child { border-bottom: 0; }
-.points .sub { color: var(--muted); margin-left: auto; font-size: 13px; }
+.points .tag { width: 20px; height: 20px; font-size: 12px; }
 .points .rm {
-  width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 0;
-  border: 1px solid transparent; border-radius: 5px; background: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1;
+  width: 20px; height: 20px; flex: none; display: grid; place-items: center; padding: 0;
+  border: 1px solid transparent; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1;
 }
 .points .rm:hover { color: var(--text); border-color: var(--line); background: var(--raised); }
 .tag {
@@ -167,10 +168,40 @@ input[type=range] { width: 100%; }
 .legend i.line.dash { background: repeating-linear-gradient(90deg, var(--gold) 0 5px, transparent 5px 8px); }
 .stage[data-view="pov"] #legendRoute { display: none; }
 
+/* Bottom centre, where the user is looking: notices on top of the waypoint bar, both above the player */
+.centre-stack {
+  position: absolute; left: 50%; translate: -50% 0; bottom: var(--above-dock); z-index: 760;
+  width: min(620px, calc(100% - 24px)); pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.stage:has(#player:not([hidden])) .centre-stack { bottom: calc(var(--above-dock) + 64px); }
+
+/* Waypoints: what to click next, the points placed (× removes one), undo / clear, route options.
+   Not in the astronaut view or during a walk (the helmet display is up then). */
+.wpbar {
+  pointer-events: auto; width: 100%;
+  background: rgba(20, 24, 29, .94); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .5); backdrop-filter: blur(6px);
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+}
+.stage[data-view="pov"] .wpbar, .stage:has(#hud:not([hidden])) .wpbar { display: none; }
+.wp-hint { margin: 0; text-align: center; font-weight: 600; font-stretch: var(--semi); text-wrap: balance; }
+.wp-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); padding-top: 6px; }
+.wp-btns { display: flex; gap: 4px; margin-left: auto; flex: none; }
+.wp-btns button {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--raised); cursor: pointer; font-size: 13px; white-space: nowrap;
+}
+.wp-btns button:hover:not(:disabled) { border-color: var(--muted); }
+.wp-btns svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.wp-opts { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 18px; }
+.wp-opts .check { margin: 0; font-size: 13px; color: var(--muted); }
+/* nothing placed: just the hint. The route options matter once there's a target. */
+.wpbar[data-count="0"] .wp-row, .wpbar:is([data-count="0"], [data-count="1"]) .wp-opts { display: none; }
+
 /* errors and notices pop up over the view, where the user is looking */
 .toast {
-  position: absolute; left: 50%; translate: -50% 0; bottom: calc(var(--above-dock) + 64px); z-index: 760;
-  width: max-content; max-width: min(460px, calc(100% - 24px)); pointer-events: none;
+  width: max-content; max-width: min(460px, 100%); pointer-events: none;
   background: rgba(20, 24, 29, .95); border: 1px solid var(--gold); border-radius: 8px;
   padding: 8px 14px; font-size: 14px; text-align: center; box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
 }

@@ -88,9 +88,10 @@ export function refreshPointList() {
     }));
   });
   $('pointList').innerHTML = points.map((pt, i) =>
-    `<li><span class="tag ${i === 0 ? 'start' : 'target'}">${i === 0 ? 'S' : i}</span>
-      ${pointName(i)}<span class="sub">elev. ${grid.elev[pt.idx].toFixed(0)} m</span>
+    `<li title="Elevation ${grid.elev[pt.idx].toFixed(0)} m"><span class="tag ${i === 0 ? 'start' : 'target'}">${i === 0 ? 'S' : i}</span>
+      ${pointName(i)}
       <button type="button" class="rm" data-i="${i}" aria-label="Remove ${pointName(i).toLowerCase()}" title="Remove">×</button></li>`).join('');
+  $('wpbar').dataset.count = points.length;   // CSS shows the list and route options once there are points
   refreshHint();
   $('btnUndo').disabled = $('btnClear').disabled = points.length === 0;
   sync3DMarkers();

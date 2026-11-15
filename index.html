@@ -47,18 +47,6 @@
     <!-- Left rail: what the astronaut sets up -->
     <aside class="rail rail-left" id="railLeft">
       <section>
-        <h2>Waypoints</h2>
-        <p class="hint" id="clickHint">Click the map to place your start, the airlock or rover.</p>
-        <ol class="points" id="pointList"></ol>
-        <div class="row">
-          <button type="button" id="btnUndo">Undo last</button>
-          <button type="button" id="btnClear">Clear all</button>
-        </div>
-        <label class="check"><input type="checkbox" id="optReturn" checked> Walk back to the start</label>
-        <label class="check"><input type="checkbox" id="optOrder" checked> Visit targets in the best order</label>
-      </section>
-
-      <section>
         <h2>Route priority</h2>
         <input type="range" id="priority" min="0" max="100" step="10" value="100" aria-describedby="priorityText">
         <div class="range-ends"><span>Fastest</span><span>Safest</span></div>
@@ -124,8 +112,30 @@
       </div>
 
       <div class="readout" id="readout" hidden></div>
-      <!-- short-lived message near the view for errors and notices (the status line also has it) -->
-      <div class="toast" id="toast" aria-hidden="true" hidden></div>
+
+      <!-- Bottom centre, above the player: notices, then the waypoints (what to click next, the points
+           placed, undo / clear). Hidden in the astronaut view and during a walk. -->
+      <div class="centre-stack">
+        <!-- short-lived message near the view for errors and notices (the status line also has it) -->
+        <div class="toast" id="toast" aria-hidden="true" hidden></div>
+        <section class="wpbar" id="wpbar" data-count="0" aria-label="Waypoints">
+          <p class="wp-hint" id="clickHint" aria-live="polite">Click the map to place your start, the airlock or rover.</p>
+          <div class="wp-row">
+            <ol class="points" id="pointList"></ol>
+            <div class="wp-btns">
+              <button type="button" id="btnUndo" title="Remove the last point">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.5 2.5 6.5l3 3"/><path d="M2.5 6.5h7a4 4 0 0 1 0 8H7"/></svg>
+                Undo
+              </button>
+              <button type="button" id="btnClear" title="Remove all points">Clear all</button>
+            </div>
+          </div>
+          <div class="wp-opts">
+            <label class="check"><input type="checkbox" id="optReturn" checked> Walk back to the start</label>
+            <label class="check"><input type="checkbox" id="optOrder" checked> Visit targets in the best order</label>
+          </div>
+        </section>
+      </div>
 
       <!-- How to look at the walk: big switch at the bottom centre of the view -->
       <div class="viewdock" role="group" aria-label="View">

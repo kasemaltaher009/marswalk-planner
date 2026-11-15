@@ -187,7 +187,7 @@ function place() {
     // no target (or no room): just above the view buttons (and the player and helmet display during
     // a walk), so the middle of the view, where the walk starts by Curiosity, stays free to click
     const st = document.querySelector('.stage').getBoundingClientRect();
-    const bottom = Math.min(...['.viewdock', '#player', '#hud'].map((q) => document.querySelector(q))
+    const bottom = Math.min(...['.viewdock', '#player', '#hud', '#wpbar'].map((q) => document.querySelector(q))
       .filter(visible).map((e) => e.getBoundingClientRect().top));
     x = st.left + st.width / 2 - cw / 2;
     y = bottom - gap - ch;
