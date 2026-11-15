@@ -147,6 +147,28 @@ function hideLayer(layer, fade = true) {
   layer.setOpacity(0);
   layer._fadeTimer = setTimeout(() => map.removeLayer(layer), FADE_MS);
 }
+/** After planning: if the route runs under the cards over the map (layer buttons and legends at
+ *  the left, the verdict card at the right, waypoints / player / view switch at the bottom), move
+ *  the map so the route sits in the free space between them. Never zooms in; when the view is too
+ *  small to have free space (phones), the map stays where it is. */
+export function revealRoute(latlngs) {
+  const box = map.getContainer().getBoundingClientRect();
+  const shown = (q) => [...document.querySelectorAll(q)].filter((e) => !e.hidden && e.getClientRects().length)
+    .map((e) => e.getBoundingClientRect());
+  const gap = 12;
+  const left = Math.max(gap, ...shown('.basecol').map((r) => r.right - box.left + gap));
+  const top = Math.max(gap, ...shown('.chips').map((r) => r.bottom - box.top + gap));
+  const right = Math.max(gap, ...shown('#summary').map((r) => box.right - r.left + gap));
+  const bottom = Math.max(gap, ...shown('.centre-stack > *, #player, .viewdock').map((r) => box.bottom - r.top + gap));
+  if (box.width - left - right < 160 || box.height - top - bottom < 160) return;
+
+  const bounds = L.latLngBounds(latlngs);
+  const nw = map.latLngToContainerPoint(bounds.getNorthWest()), se = map.latLngToContainerPoint(bounds.getSouthEast());
+  if (nw.x >= left && nw.y >= top && se.x <= box.width - right && se.y <= box.height - bottom) return;   // all in view
+  map.fitBounds(bounds, { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom],
+                          maxZoom: map.getZoom(), animate: !REDUCED_MOTION });
+}
+
 export const overlayOn = (name) => !!layers[name] && document.querySelector(`[data-overlay="${name}"]`).getAttribute('aria-pressed') === 'true';
 
 function showReadout(latlng) {

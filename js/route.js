@@ -3,6 +3,7 @@
 import { state, $, setStatus, toast, priority } from './state.js';
 import { bestRoute } from './routing/planner.js';
 import { drawRoutes } from './routeDraw.js';
+import { revealRoute, latlngOf } from './map.js';
 import { renderSummary } from './summary.js';
 import { play, stopPlayback, placeAstronaut } from './playback.js';
 
@@ -46,6 +47,8 @@ export function planRoute({ animate = true } = {}) {
     state.notice = '';
     drawRoutes(animate);
     renderSummary();
+    // not while dragging the priority slider (animate: false), where the map should hold still
+    if (animate && state.plan && state.activeView === 'map') revealRoute(state.plan.chosen.path.map(latlngOf));
     if (state.activeView === 'pov' && state.plan) { play.tl = null; placeAstronaut(); }
   }, 20);
 }

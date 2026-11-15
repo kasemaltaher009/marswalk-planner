@@ -66,8 +66,14 @@ export const startHour = () => {
   const [hh, mm] = ($('inStart').value || '10:00').split(':').map(Number);
   return hh + mm / 60;
 };
-export const stopHours = () => (Number($('inStop').value) || 0) / 60;
-export const suitHours = () => Number($('inSuit').value) || 4;
+/** A number field's value kept inside the field's own min..max (empty → `fallback`), so a typo
+ *  like -60 min of work or a 0 h suit can't change the go/no-go call. */
+export const fieldNumber = (id, fallback) => {
+  const el = $(id), v = el.valueAsNumber;
+  return Number.isFinite(v) ? Math.min(Number(el.max), Math.max(Number(el.min), v)) : fallback;
+};
+export const stopHours = () => fieldNumber('inStop', 0) / 60;
+export const suitHours = () => fieldNumber('inSuit', 4);
 export const selectedWeather = () => state.weather.find((w) => String(w.sol) === $('inSol').value);
 /** Walking time plus the work time at every target. */
 export const totalHours = (route) => route.stats.walkHours + (state.points.length - 1) * stopHours();

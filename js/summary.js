@@ -110,6 +110,8 @@ export function fitSummary() {
     bottom = Math.min(bottom, r.top - 10);
   }
   card.style.maxHeight = `${Math.max(56, bottom - c.top)}px`;
+  // too short to show everything: keep distance and time in the header, next to the verdict
+  card.classList.toggle('tight', card.scrollHeight > card.clientHeight + 1);
 }
 
 export function setupSummaryFit() {

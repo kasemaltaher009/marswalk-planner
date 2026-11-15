@@ -10,6 +10,9 @@ export function curiosityLayer() {
   const lastSol = latestStop().properties.sol;
   return L.geoJSON(state.curiosity, {
     style: { color: '#ffffff', weight: 2, opacity: 0.8, dashArray: '4 4' },
+    // the drive lines (not the stops, which pointToLayer makes) ignore the mouse: they run through
+    // every stop dot and would catch its clicks, and a click beside a line should place a point
+    interactive: false,
     pointToLayer: (f, latlng) => {
       const now = f.properties.sol === lastSol;
       return L.circleMarker(latlng, {

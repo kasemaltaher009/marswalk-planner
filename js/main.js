@@ -18,7 +18,7 @@
  *   view3dBridge.js  map / 3D / astronaut view switch, and keeping the 3D view in step
  *   main.js      (this file) start-up and the buttons
  */
-import { state, $, setStatus, PLAY_SECONDS_PER_HOUR, REDUCED_MOTION, priority, playSpeed } from './state.js';
+import { state, $, setStatus, toast, fieldNumber, PLAY_SECONDS_PER_HOUR, REDUCED_MOTION, priority, playSpeed } from './state.js';
 import { loadAll } from './data.js';
 import { buildGrid } from './routing/grid.js';
 import { setupMap } from './map.js';
@@ -130,6 +130,14 @@ function setupControls() {
 
   // These only change the numbers → refresh the summary (and the playback timeline)
   ['inStart', 'inStop', 'inSuit'].forEach((id) => $(id).addEventListener('input', () => { stopPlayback(true); renderSummary(); }));
+  // Leaving a number field: show the value the planner really uses (kept inside the field's range)
+  [['inStop', 0, 'Work at each target', 'min'], ['inSuit', 4, 'Suit limit', 'h']].forEach(([id, fallback, name, unit]) =>
+    $(id).addEventListener('change', () => {
+      const used = fieldNumber(id, fallback);
+      if ($(id).valueAsNumber === used) return;
+      $(id).value = used;
+      toast(`${name} must be ${$(id).min} to ${$(id).max} ${unit}, so it is set to ${used} ${unit}.`, true);
+    }));
   $('inSol').addEventListener('change', () => { renderWeather(); renderSummary(); });
 
   // Playback
