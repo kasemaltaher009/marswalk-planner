@@ -14,7 +14,10 @@ const EXAGGERATION = 1.5;   // vertical exaggeration so the relief reads at a gl
 const MESH_STEP = 1;        // mesh vertex on every grid cell (5 m), so eye-level views sit on the ground
 const SKY = '#c99f78';      // Mars daytime sky
 const DUST = '#7a4e34';     // ground beyond the planning area (only if the surroundings fail to load)
-const EYE_M = 3;            // astronaut-view camera height above the ground (in exaggerated metres)
+// Astronaut-view camera height above the ground. Higher than a real eye (~1.7 m) on purpose: the
+// ground is a 5 m mesh under a 2 m/px photo, so at true height the blurry patch at your feet fills
+// the bottom of the screen and it feels like lying on the ground. At 8 it reads as standing.
+const EYE_M = 8;
 
 /** config: config.json (its `context`, `globe` and `center` parts are used here).
  *  onMode('globe' | 'local') tells the page when the view switches between the globe and the terrain. */
