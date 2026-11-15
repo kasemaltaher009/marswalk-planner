@@ -21,6 +21,11 @@
 <body>
   <header class="topbar">
     <div class="brand">
+      <!-- the panels toggle sits in the same corner whether the panels are shown or hidden -->
+      <button type="button" id="btnPanels" class="panels-btn" aria-expanded="true" aria-controls="railLeft summary" title="Hide panels">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5 2.5v11M11 2.5v11"/></svg>
+        <span id="btnPanelsLabel" class="sr-only">Hide panels</span>
+      </button>
       <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
         <path d="M16 3C9 3 4 8.5 4 15.5V24c0 2.8 2.2 5 5 5h14c2.8 0 5-2.2 5-5v-8.5C28 8.5 23 3 16 3Z" fill="none" stroke="currentColor" stroke-width="2"/>
         <path d="M8 15c0-4.4 3.6-7.5 8-7.5s8 3.1 8 7.5v2.5c0 1.4-1.1 2.5-2.5 2.5h-11C9.1 20 8 18.9 8 17.5Z" fill="currentColor"/>
@@ -31,101 +36,177 @@
       </div>
     </div>
     <div class="topctl">
-      <div class="viewswitch" role="group" aria-label="View">
-        <button type="button" id="btnMap" aria-pressed="true">Map</button>
-        <button type="button" id="btn3D" aria-pressed="false">3D terrain</button>
-        <button type="button" id="btnPOV" aria-pressed="false" disabled title="Plan a route first">Astronaut view</button>
-      </div>
-      <button type="button" id="btnPanels" class="panels-btn" aria-expanded="true" aria-controls="railLeft railRight">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5 2.5v11M11 2.5v11"/></svg>
-        <span id="btnPanelsLabel">Hide panels</span>
+      <button type="button" id="btnTour" class="panels-btn" title="Show me how to use the planner">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M6.2 6.2a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4M8 11.3v.2"/></svg>
+        <span>Tour</span>
       </button>
     </div>
     <p class="status" id="status" role="status">Loading NASA data…</p>
   </header>
 
   <main class="layout">
-    <!-- Left rail: what the astronaut sets up -->
+    <!-- Left rail: what the astronaut sets up, and the ground and weather it will meet -->
     <aside class="rail rail-left" id="railLeft">
-      <section>
-        <h2>Waypoints</h2>
-        <p class="hint" id="clickHint">Click the map to place your start, the airlock or rover.</p>
-        <ol class="points" id="pointList"></ol>
-        <div class="row">
-          <button type="button" id="btnUndo">Undo last</button>
-          <button type="button" id="btnClear">Clear all</button>
-        </div>
-        <label class="check"><input type="checkbox" id="optReturn" checked> Walk back to the start</label>
-        <label class="check"><input type="checkbox" id="optOrder" checked> Visit targets in the best order</label>
-      </section>
-
       <section>
         <h2>Route priority</h2>
         <input type="range" id="priority" min="0" max="100" step="10" value="100" aria-describedby="priorityText">
         <div class="range-ends"><span>Fastest</span><span>Safest</span></div>
-        <p class="hint" id="priorityText">Safest: stays on gentle, firm ground even if the walk is longer.</p>
+        <p class="hint" id="priorityText">Stays on gentle, firm ground, even if longer.</p>
       </section>
 
       <section>
-        <h2>EVA settings</h2>
+        <h2>Walk settings <span class="muted">(EVA)</span></h2>
         <div class="field">
-          <label for="inStart">Step outside at (local solar time)</label>
+          <label for="inStart">Step outside at (solar time)</label>
           <input type="time" id="inStart" value="10:00" step="900">
         </div>
         <div class="field">
-          <label for="inStop">Minutes of work at each target</label>
+          <label for="inStop">Work at each target (min)</label>
           <input type="number" id="inStop" value="20" min="0" max="120" step="5">
         </div>
         <div class="field">
-          <label for="inSuit">Suit limit in hours</label>
+          <label for="inSuit">Suit limit (hours)</label>
           <input type="number" id="inSuit" value="4" min="1" max="8" step="0.5">
         </div>
-        <div class="field">
-          <label for="inSol">Use weather Curiosity measured on</label>
-          <select id="inSol"></select>
-        </div>
       </section>
+
+      <section id="elevBox" hidden>
+        <h2>Elevation</h2>
+        <div class="chartbox"><canvas id="elevChart"></canvas></div>
+      </section>
+
+      <section>
+        <h2 class="wx-head">Weather on <select id="inSol" aria-label="Curiosity weather from sol"></select></h2>
+        <div id="wxBody" class="hint">No weather data.</div>
+        <div class="chartbox" id="wxChartBox" hidden><canvas id="tempChart"></canvas></div>
+      </section>
+
+      <p class="credits">Data: NASA/JPL-Caltech/MSSS, USGS Astrogeology, NASA PDS (REMS), JPL Mars Trek.</p>
     </aside>
 
     <!-- Centre: map or 3D -->
-    <div class="stage" data-view="map">
+    <div class="stage" data-view="map" data-globe="true">
       <div id="map" aria-label="Map of the walking area"></div>
       <div id="view3d" hidden aria-label="3D view of the walking area"></div>
+      <div class="veil" id="veil" aria-hidden="true"></div>
 
       <div class="toolbar">
-        <div class="seg" role="group" aria-label="Base map">
-          <button type="button" data-base="photo" aria-pressed="true">Photo</button>
-          <button type="button" data-base="relief" aria-pressed="false">Relief</button>
+        <!-- Photo / Relief with the legends under it: the legend card takes the same width -->
+        <div class="basecol">
+          <div class="seg" role="group" aria-label="Base map">
+            <button type="button" data-base="photo" aria-pressed="true">Photo</button>
+            <button type="button" data-base="relief" aria-pressed="false">Relief</button>
+          </div>
+          <div class="legends">
+            <div class="legend" id="legendSlope">
+              <span><i style="background:#2ecc71"></i>under 10°</span>
+              <span><i style="background:#f1c40f"></i>10–15°</span>
+              <span><i style="background:#e67e22"></i>15–25°</span>
+              <span><i style="background:#e74c3c"></i>too steep</span>
+            </div>
+            <div class="legend" id="legendGround" hidden>
+              <span><i style="background:#62aeff"></i>loose sand</span>
+              <span><i style="background:#787882"></i>firm rock</span>
+            </div>
+            <div class="legend" id="legendRoute" hidden>
+              <span><i class="line"></i>your route</span>
+              <span><i class="line dash"></i><span id="legendGhost">fastest</span> route</span>
+            </div>
+            <div class="legend" id="legendCuriosity">
+              <span><i class="dot" style="background:#ff4f7b"></i>Curiosity today</span>
+              <span><i class="dot" style="background:#9a86ff"></i>past stops (photos)</span>
+            </div>
+          </div>
         </div>
         <div class="chips" role="group" aria-label="Map layers">
           <button type="button" data-overlay="slope" aria-pressed="true">Slope</button>
           <button type="button" data-overlay="ground" aria-pressed="false">Sand and rock</button>
           <button type="button" data-overlay="curiosity" aria-pressed="true">Curiosity</button>
         </div>
-        <div class="legends">
-          <div class="legend" id="legendSlope">
-            <span><i style="background:#2ecc71"></i>under 10°</span>
-            <span><i style="background:#f1c40f"></i>10–15°</span>
-            <span><i style="background:#e67e22"></i>15–25°</span>
-            <span><i style="background:#e74c3c"></i>too steep</span>
-          </div>
-          <div class="legend" id="legendGround" hidden>
-            <span><i style="background:#e6a028"></i>loose sand</span>
-            <span><i style="background:#787882"></i>firm rock</span>
-          </div>
-          <div class="legend" id="legendCuriosity">
-            <span><i class="dot" style="background:#ff4f7b"></i>Curiosity today</span>
-            <span><i class="dot" style="background:#9a86ff"></i>past stops (photos)</span>
-          </div>
-        </div>
       </div>
 
       <div class="readout" id="readout" hidden></div>
+
+      <!-- The verdict and the walk's numbers, over the view (top right). Shown once a route exists;
+           hidden with the panels (Hide panels, or during a walk). Click the verdict to fold it. -->
+      <details class="summary" id="summary" open hidden>
+        <summary id="verdictBox">
+          <span class="verdict" id="verdict">Go</span>
+          <span class="sum-line" id="sumLine"></span>
+          <svg class="sum-fold" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 10 4-4 4 4"/></svg>
+        </summary>
+        <ul class="poll" id="poll"></ul>
+        <div id="statsBox">
+          <dl class="stats">
+            <div><dt>Distance</dt><dd id="sDist"></dd></div>
+            <div><dt>Time outside</dt><dd id="sTime"></dd></div>
+            <div><dt>Climb</dt><dd id="sUp"></dd></div>
+            <div><dt>Radiation</dt><dd id="sRad"></dd></div>
+            <div><dt>Back inside</dt><dd id="sEnd"></dd></div>
+          </dl>
+          <ol class="legs" id="sOrder" aria-label="Legs of the walk, in order"></ol>
+        </div>
+      </details>
+
+      <!-- Bottom centre, above the player: notices, then the waypoints (what to click next, the points
+           placed, undo / clear). Hidden during a walk. -->
+      <div class="centre-stack">
+        <!-- short-lived message near the view for errors and notices (the status line also has it) -->
+        <div class="toast" id="toast" aria-hidden="true" hidden></div>
+        <!-- during a walk, while the astronaut works at a target: time left, and a way to skip it -->
+        <div class="work" id="work" hidden>
+          <div class="work-text">
+            <span id="workTitle">Working at target 1</span>
+            <span class="work-left" id="workLeft"></span>
+          </div>
+          <div class="bar"><i id="workBar"></i></div>
+          <button type="button" class="end" id="btnSkipWork">Skip
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3.5 8 8l-5 4.5zM8.5 3.5 13.5 8l-5 4.5z" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <section class="wpbar" id="wpbar" data-count="0" aria-label="Waypoints">
+          <p class="wp-hint" id="clickHint" aria-live="polite">Click the map to place your start, the airlock or rover.</p>
+          <div class="wp-row">
+            <ol class="points" id="pointList"></ol>
+            <div class="wp-btns">
+              <button type="button" id="btnUndo" title="Remove the last point">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.5 2.5 6.5l3 3"/><path d="M2.5 6.5h7a4 4 0 0 1 0 8H7"/></svg>
+                Undo
+              </button>
+              <button type="button" id="btnClear" title="Remove all points">Clear all</button>
+            </div>
+          </div>
+          <div class="wp-opts">
+            <label class="check"><input type="checkbox" id="optReturn" checked> Walk back to the start</label>
+            <label class="check"><input type="checkbox" id="optOrder" checked> Visit targets in the best order</label>
+          </div>
+        </section>
+      </div>
+
+      <!-- How to look at the walk: big switch at the bottom centre of the view -->
+      <div class="viewdock" role="group" aria-label="View">
+        <button type="button" id="btnMap" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/></svg>
+          <span>Map</span>
+        </button>
+        <button type="button" id="btn3D" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 19 8.5 8l4 6 3-4L22 19z"/><circle cx="17" cy="5.5" r="1.8"/></svg>
+          <span>3D terrain</span>
+        </button>
+        <button type="button" id="btnPOV" aria-pressed="false" disabled title="Plan a route first">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c-4.4 0-7.5 3.4-7.5 7.8V16c0 1.7 1.3 3 3 3h9c1.7 0 3-1.3 3-3v-5.2C19.5 6.4 16.4 3 12 3Z"/><path d="M7.5 11c0-2.6 2-4.5 4.5-4.5s4.5 1.9 4.5 4.5v.8c0 .9-.7 1.6-1.6 1.6H9.1c-.9 0-1.6-.7-1.6-1.6z"/></svg>
+          <span>Astronaut view<small class="if-off">plan a route first</small><small class="if-nudge">see the walk on foot</small></span>
+        </button>
+      </div>
 
       <!-- Helmet display during playback -->
       <div class="hud" id="hud" hidden>
         <div class="hud-clock"><span id="hClock">10:00</span><small>local solar time</small></div>
         <p class="hud-status" id="hStatus"></p>
+        <!-- narrow views only: the helmet display starts as a slim bar; this opens the details -->
+        <button type="button" class="hud-more" id="btnHudMore" aria-expanded="false" aria-controls="hud" aria-label="Show walk details">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 10 4-4 4 4"/></svg>
+        </button>
         <div class="hud-suit">
           <div class="bar"><i id="hSuitBar"></i></div>
           <span id="hSuit"></span>
@@ -157,49 +238,6 @@
       </div>
     </div>
 
-    <!-- Right rail: the verdict -->
-    <aside class="rail rail-right" id="railRight">
-      <section class="verdict-box" id="verdictBox">
-        <p class="verdict" id="verdict">Standby</p>
-        <p class="verdict-why" id="verdictWhy">Place a start and at least one science target. Each system below will give its call.</p>
-        <ul class="poll" id="poll"></ul>
-      </section>
-
-      <section id="statsBox" hidden>
-        <h2>The walk</h2>
-        <dl class="stats">
-          <div><dt>Distance</dt><dd id="sDist"></dd></div>
-          <div><dt>Time outside</dt><dd id="sTime"></dd></div>
-          <div><dt>Climb</dt><dd id="sUp"></dd></div>
-          <div><dt>Descent</dt><dd id="sDown"></dd></div>
-          <div><dt>Radiation</dt><dd id="sRad"></dd></div>
-          <div><dt>Back inside</dt><dd id="sEnd"></dd></div>
-        </dl>
-        <ol class="legs" id="sOrder" aria-label="Legs of the walk, in order"></ol>
-      </section>
-
-      <section id="compareBox" hidden>
-        <h2>Compared with the <span id="ghostName">fastest</span> route</h2>
-        <table class="compare">
-          <thead><tr><th></th><th id="cHeadA">Your route</th><th id="cHeadB">Fastest</th></tr></thead>
-          <tbody id="compareBody"></tbody>
-        </table>
-        <p class="hint">The dashed gold line on the map is the other route.</p>
-      </section>
-
-      <section id="elevBox" hidden>
-        <h2>Elevation along the route</h2>
-        <div class="chartbox"><canvas id="elevChart"></canvas></div>
-      </section>
-
-      <section>
-        <h2>Weather <span class="muted" id="wxSol"></span></h2>
-        <div id="wxBody" class="hint">No weather data.</div>
-        <div class="chartbox" id="wxChartBox" hidden><canvas id="tempChart"></canvas></div>
-      </section>
-
-      <p class="credits">Data from NASA/JPL-Caltech/MSSS (Curiosity rover, photos, waypoints), USGS Astrogeology (Gale 1 m elevation model, HiRISE colour mosaic, THEMIS thermal inertia), NASA PDS (REMS weather) and JPL Mars Trek.</p>
-    </aside>
   </main>
 
   <!-- Mission briefing shown on load -->
@@ -209,14 +247,14 @@
       <h2 id="briefTitle">Plan a safe walk on Mount Sharp</h2>
       <p>Curiosity has been climbing Mount Sharp in Gale Crater since 2014. This planner combines its measurements with orbital maps to find the safest walking route to the science targets you choose, then checks the walk against your suit's limits before you step outside.</p>
       <dl class="brief-facts">
-        <div><dt>Walking area</dt><dd><span id="bSize">4 × 4 km</span> around Curiosity's position on sol <span id="bLastSol">5070</span></dd></div>
+        <div><dt>Walking area</dt><dd><span id="bSize">5 × 5 km</span> around Curiosity's position on sol <span id="bLastSol">5070</span></dd></div>
         <div><dt>Too steep to walk</dt><dd><span id="bBlocked">–</span> of the area</dd></div>
         <div><dt>Map detail</dt><dd>1 m elevation, 2 m colour photo</dd></div>
         <div><dt>Suit limit</dt><dd>4 hours</dd></div>
       </dl>
       <ol class="brief-steps">
-        <li>Click the map to place your start.</li>
-        <li>Add up to three science targets.</li>
+        <li>Click Gale Crater on the globe to fly down to the walking area.</li>
+        <li>Click the ground to place your start, then add up to three science targets.</li>
         <li>Read the go/no-go call, then play the walk.</li>
       </ol>
       <div class="brief-load" id="briefLoad">

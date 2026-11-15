@@ -4,7 +4,7 @@ import { drawTempChart } from './charts.js';
 
 export function setupWeather() {
   const { weather } = state;
-  if (!weather.length) { $('inSol').closest('.field').hidden = true; return; }
+  if (!weather.length) { $('inSol').closest('section').hidden = true; return; }
   $('inSol').innerHTML = weather.map((w) => `<option value="${w.sol}">sol ${w.sol}</option>`).join('');
   $('inSol').value = String(weather[weather.length - 1].sol);
   renderWeather();
@@ -14,16 +14,12 @@ export function setupWeather() {
 export function renderWeather() {
   const w = selectedWeather();
   if (!w) return;
-  const v = (x, unit) => (x == null ? 'no data' : `${x} ${unit}`);
-  const range = (lo, hi) => (lo == null || hi == null ? 'no data' : `${lo} to ${hi} °C`);
-  $('wxSol').textContent = `on sol ${w.sol}`;
+  const range = (lo, hi) => (lo == null || hi == null ? 'no data' : `${Math.round(lo)} to ${Math.round(hi)} °C`);
   $('wxBody').className = '';
   $('wxBody').innerHTML = `<dl class="wx">
       <dt>Air</dt><dd>${range(w.air_min_C, w.air_max_C)}</dd>
       <dt>Ground</dt><dd>${range(w.ground_min_C, w.ground_max_C)}</dd>
-      <dt>Pressure</dt><dd>${v(w.pressure_Pa, 'Pa')}</dd>
-      <dt>UV peak</dt><dd>${v(w.uv_peak, 'W/m²')}</dd>
-      <dt>Humidity peak</dt><dd>${v(w.humidity_max_pct, '%')}</dd>
+      ${w.pressure_Pa == null ? '' : `<dt>Pressure</dt><dd>${Math.round(w.pressure_Pa)} Pa</dd>`}
     </dl>`;
 }
 

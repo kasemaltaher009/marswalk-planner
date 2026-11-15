@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Astronaut preview</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #c99f78; font: 14px system-ui, sans-serif; overflow: hidden; }
+    #ui { position: fixed; top: 12px; left: 12px; background: #1b1f24cc; color: #fff; padding: 8px 12px; border-radius: 8px; }
+    #ui label { margin-right: 10px; }
+  </style>
+  <script type="importmap">
+    { "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <div id="ui">
+    Astronaut model preview (drag to orbit) —
+    <label><input type="checkbox" id="walk" checked> Walking</label>
+    <label><input type="checkbox" id="turn" checked> Turn</label>
+  </div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { createAstronaut } from './astronaut3d.js';
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(devicePixelRatio);
+    renderer.setSize(innerWidth, innerHeight);
+    document.body.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#c99f78');
+    // same lights as view3d.js
+    scene.add(new THREE.HemisphereLight('#fff1e0', '#5a3a28', 1.6));
+    const sun = new THREE.DirectionalLight('#ffffff', 1.3);
+    sun.position.set(80, 120, 60);
+    scene.add(sun);
+    scene.add(new THREE.Mesh(new THREE.CircleGeometry(200, 48).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#a8714d' })));
+
+    const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 1, 2000);
+    camera.position.set(70, 55, 110);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 32, 0);
+    controls.update();
+
+    const astro = createAstronaut();
+    scene.add(astro);
+    window.preview = { astro, camera, controls };
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+    const walk = document.getElementById('walk'), turn = document.getElementById('turn');
+    renderer.setAnimationLoop((t) => {
+      astro.userData.walk(t / 1000 * 4, walk.checked ? 1 : 0);
+      if (turn.checked) astro.rotation.y = t / 4000;
+      renderer.render(scene, camera);
+    });
+  </script>
+</body>
+</html>

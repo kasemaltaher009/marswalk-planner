@@ -65,6 +65,9 @@ function siteSprites() {
   return [sprite(ring, 0.05, new THREE.Vector2(0.5, 0.5)), sprite(label, 0.06, new THREE.Vector2(-0.12, 0.5))];
 }
 
+const ROTATE_SPEED = 0.45;     // drag speed with the whole planet in view
+const ROTATE_FULL_ALT = 3.2;   // height (Mars radii above the surface) of that view; slower below it
+
 export function createGlobe(renderer, dom, { dataUrl, region, site }) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#05060a');
@@ -73,7 +76,7 @@ export function createGlobe(renderer, dom, { dataUrl, region, site }) {
   controls.enabled = false;
   controls.enablePan = false;
   controls.enableDamping = true;
-  controls.rotateSpeed = 0.45;
+  controls.rotateSpeed = ROTATE_SPEED;
   controls.minDistance = 1.25;
   controls.maxDistance = 6;
 
@@ -162,6 +165,9 @@ export function createGlobe(renderer, dom, { dataUrl, region, site }) {
     const alt = camera.position.length() - 1;
     camera.near = Math.max(0.0004, alt * 0.4);
     camera.updateProjectionMatrix();
+    // drag speed follows the height above the surface, so the ground stays under the cursor when
+    // zoomed in (a fixed speed tuned for the whole planet flings it hundreds of km per drag up close)
+    controls.rotateSpeed = ROTATE_SPEED * Math.min(1, alt / ROTATE_FULL_ALT);
     // hide the label when Gale is round the back of the planet, or when it would cover the close-up
     const facing = camera.position.dot(siteDir) / camera.position.length();
     marker.visible = alt > 0.12 && facing > 1 / camera.position.length() + 0.05;

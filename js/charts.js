@@ -1,5 +1,5 @@
 /* Charts (Chart.js): elevation along the route, and the air temperature over the sol. */
-import { state, $, startHour, selectedWeather, totalHours, pointName } from './state.js';
+import { state, $, startHour, selectedWeather, totalHours, pointName, fmtElev } from './state.js';
 import { map, hoverDot, latlngOf } from './map.js';
 
 Chart.defaults.color = '#a0a7af';
@@ -60,14 +60,14 @@ export function drawElevChart(r) {
     interaction: { mode: 'nearest', axis: 'x', intersect: false },
     scales: {
       x: { type: 'linear', title: { display: true, text: 'distance walked (km)' } },
-      y: { title: { display: true, text: 'elevation (m)' } },
+      y: { ticks: { callback: (v) => String(v) }, title: { display: true, text: 'elevation (m)' } },
     },
     plugins: {
       legend: { display: false },
       tooltip: { callbacks: {
         label: (c) => c.dataset.type === 'scatter'
-          ? `${c.raw.label}: ${c.raw.y.toFixed(0)} m`
-          : `${c.raw.y.toFixed(0)} m after ${c.raw.x.toFixed(2)} km`,
+          ? `${c.raw.label}: ${fmtElev(c.raw.y)}`
+          : `${fmtElev(c.raw.y)} after ${c.raw.x.toFixed(2)} km`,
       } },
     },
     // hovering the profile shows that spot on the map
