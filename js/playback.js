@@ -103,6 +103,7 @@ export function stopPlayback(reset = false, replace = true) {
   play.t = 0; play.tl = null; play.photoFor = null; play.photoJob++; play.facing = null;
   setWalkMode(false);
   $('hud').hidden = true;
+  $('work').hidden = true;
   $('hPhoto').hidden = true;
   setPhotoPin(null);
   $('scrub').value = 0;
@@ -119,6 +120,15 @@ export function placeAstronaut() {
   if (!state.plan) return;
   ensureTimeline();
   $('hud').hidden = false;
+  renderPlayback();
+}
+
+/** Skip the rest of the work at the current target: on to the next leg (playing or paused, as it was). */
+export function skipWork() {
+  if (!play.tl) return;
+  const { k, stop } = stateAt(play.tl, play.t);
+  if (stop === null) return;
+  play.t = play.tl.depart[k] + 1e-9;   // just past the end of the work
   renderPlayback();
 }
 
@@ -203,6 +213,14 @@ export function renderPlayback() {
   $('hAir').textContent = wx ? `${airTempAt(wx, clock).toFixed(0)} °C` : 'no data';
   $('hDose').textContent = `${(config.radiation_mSv_per_day * play.t / config.sol_hours).toFixed(3)} mSv`;
   $('hElapsed').textContent = fmtH(play.t);
+  // working at a target: how much work time is left, with a Skip button
+  $('work').hidden = stop === null || done;
+  if (stop !== null && !done) {
+    const workLeft = tl.depart[k] - play.t, workH = tl.depart[k] - tl.arrive[k];
+    $('workTitle').textContent = `Working at target ${stop}`;
+    $('workLeft').textContent = `${fmtH(Math.max(workLeft, 1 / 120))} of work left`;   // never "0 min" while still working
+    $('workBar').style.width = `${100 * (1 - workLeft / (workH || 1))}%`;
+  }
   // Picture of the area: while working at a target, or whenever playback is stopped
   const spot = stop !== null ? `t${stop}` : !play.playing ? `p${path[k]}` : null;
   showAreaPicture(spot && `${spot}:${state.activeView === 'pov' ? 'look' : 'all'}`, r, c);

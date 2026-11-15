@@ -27,7 +27,7 @@ import { refreshPointList, removePoint, clearPoints } from './points.js';
 import { planRoute } from './route.js';
 import { renderSummary } from './summary.js';
 import { setupWeather, renderWeather } from './weather.js';
-import { play, startPlayback, stopPlayback, setPanels, scrubTo } from './playback.js';
+import { play, startPlayback, stopPlayback, setPanels, scrubTo, skipWork } from './playback.js';
 import { showView, switchView } from './view3dBridge.js';
 import { setupTour, maybeStartTour } from './tour.js';
 
@@ -131,12 +131,14 @@ function setupControls() {
     startPlayback();
   });
   $('btnEnd').addEventListener('click', () => stopPlayback(true));
+  $('btnSkipWork').addEventListener('click', skipWork);
   // Narrow views: the helmet display is a slim bar until opened (the arrow, or a tap on the photo)
   const hudOpen = (open) => {
     $('hud').classList.toggle('open', open);
     $('btnHudMore').setAttribute('aria-expanded', open);
     $('btnHudMore').setAttribute('aria-label', open ? 'Hide walk details' : 'Show walk details');
   };
+  new ResizeObserver(() => document.querySelector('.stage').style.setProperty('--hud-h', `${$('hud').offsetHeight}px`)).observe($('hud'));
   $('btnHudMore').addEventListener('click', () => hudOpen(!$('hud').classList.contains('open')));
   $('hPhoto').addEventListener('click', (e) => {
     if (getComputedStyle($('btnHudMore')).display === 'none' || $('hud').classList.contains('open')) return;

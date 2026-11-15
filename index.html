@@ -119,6 +119,17 @@
       <div class="centre-stack">
         <!-- short-lived message near the view for errors and notices (the status line also has it) -->
         <div class="toast" id="toast" aria-hidden="true" hidden></div>
+        <!-- during a walk, while the astronaut works at a target: time left, and a way to skip it -->
+        <div class="work" id="work" hidden>
+          <div class="work-text">
+            <span id="workTitle">Working at target 1</span>
+            <span class="work-left" id="workLeft"></span>
+          </div>
+          <div class="bar"><i id="workBar"></i></div>
+          <button type="button" class="end" id="btnSkipWork">Skip
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3.5 8 8l-5 4.5zM8.5 3.5 13.5 8l-5 4.5z" fill="currentColor"/></svg>
+          </button>
+        </div>
         <section class="wpbar" id="wpbar" data-count="0" aria-label="Waypoints">
           <p class="wp-hint" id="clickHint" aria-live="polite">Click the map to place your start, the airlock or rover.</p>
           <div class="wp-row">

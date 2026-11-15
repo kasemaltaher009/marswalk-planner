@@ -209,6 +209,20 @@ body:has(#btnEnd:not([hidden])) .wpbar { display: none; }   /* the astronaut vie
 }
 .toast.error { border-color: var(--nogo); }
 
+/* Working at a target during a walk: time left + Skip (playback.js renderPlayback / skipWork) */
+.work {
+  pointer-events: auto; width: min(420px, 100%);
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 12px;
+  background: rgba(20, 24, 29, .95); border: 1px solid var(--cyan); border-radius: 10px;
+  padding: 8px 10px 8px 14px; box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
+}
+.work-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-weight: 600; }
+.work-left { color: var(--cyan); font-variant-numeric: tabular-nums; font-weight: 500; }
+.work .bar { grid-column: 1; height: 5px; border-radius: 3px; background: var(--raised); overflow: hidden; }
+.work .bar i { display: block; height: 100%; background: var(--cyan); }
+.work .end { grid-column: 2; grid-row: 1 / 3; display: inline-flex; align-items: center; gap: 6px; }
+.work .end svg { width: 13px; height: 13px; }
+
 /* View switch: a big dock at the bottom centre of the view, the current view lit in cyan.
    Everything else at the bottom (player, helmet display, readout) sits above it. */
 .viewdock {
@@ -483,12 +497,12 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
 
 /* Pop-ups over the view: fade and rise in when shown, fade and sink when hidden.
    [hidden] is display: none, so display flips at the end of the exit (allow-discrete). */
-.toast, .player, .hud, .legend, .readout, .globe-btn, .tour, .end, .hud-photo {
+.toast, .work, .player, .hud, .legend, .readout, .globe-btn, .tour, .end, .hud-photo {
   transition: opacity .26s var(--ease-out), transform .26s var(--ease-out), display .26s allow-discrete;
 }
 /* hidden by CSS rules, not [hidden]: they only fade in (an exit would just linger) */
 .wpbar, .wp-row, .wp-opts { transition: opacity .26s var(--ease-out), transform .26s var(--ease-out); }
-:is(.toast, .player, .hud, .tour, .end, .globe-btn)[hidden] { opacity: 0; transform: translateY(8px); }
+:is(.toast, .work, .player, .hud, .tour, .end, .globe-btn)[hidden] { opacity: 0; transform: translateY(8px); }
 :is(.legend, .readout, .hud-photo)[hidden] { opacity: 0; }
 @starting-style {
   :is(.toast, .wpbar, .player, .hud, .tour, .end, .globe-btn) { opacity: 0; transform: translateY(10px); }
@@ -588,6 +602,9 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
    (or a tap on the thumbnail) opens it (.open) to all the readings and the full photo. */
 @container (max-width: 1140px) {
   .hud { left: 50%; translate: -50% 0; width: min(620px, calc(100% - 24px)); bottom: calc(var(--above-dock) + 64px); padding: 6px 8px 6px 12px; }
+  /* the helmet display shares the bottom centre here: notices and the work card sit above it
+     (--hud-h = its height, kept up to date in main.js) */
+  .stage:has(#hud:not([hidden])) .centre-stack { bottom: calc(var(--above-dock) + 72px + var(--hud-h, 0px)); }
   /* columns: clock | status | photo | arrow. Rows: clock+status, suit, readings (open only) */
   .hud:not([hidden]) { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; column-gap: 10px; align-content: start; align-items: center; }
   .hud > :not(.hud-photo, .hud-more) { grid-column: 1 / 3; }
