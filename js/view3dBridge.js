@@ -4,7 +4,7 @@
 import { state, $, setStatus, DATA } from './state.js';
 import { map, overlayOn, setOverlay } from './map.js';
 import { addPoint } from './points.js';
-import { placeAstronaut } from './playback.js';
+import { placeAstronaut, lookedAt, refreshAreaPicture } from './playback.js';
 
 let view3dLoading = null;
 const MODE_STATUS = {
@@ -29,6 +29,7 @@ export function showView(name) {
   $('view3d').hidden = name === 'map';
   $('readout').hidden = true;
   document.querySelector('.stage').dataset.view = name;   // CSS hides the layer toolbar in the astronaut view
+  refreshAreaPicture();   // the astronaut view shows the photo of where you look, the others all photos
   if (name === 'map') {
     state.view3d?.stop();
     map.invalidateSize();
@@ -46,6 +47,7 @@ export function showView(name) {
         state.view3d = m.createView3D($('view3d'), {
           grid: state.grid, config: state.config, dataUrl: DATA,
           onPick: (idx) => addPoint(idx),
+          onLook: lookedAt,
           onMode: (mode) => {
             document.querySelector('.stage').dataset.globe = mode === 'globe';   // CSS hides the map layer buttons
             if (state.activeView === '3d') setStatus(MODE_STATUS[mode]);

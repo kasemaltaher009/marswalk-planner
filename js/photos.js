@@ -26,11 +26,55 @@ export function curiosityPhotos(sol) {
     return items
       .filter((it) => !it.is_thumbnail)
       .sort((a, b) => rank(a) - rank(b))
-      .map((it) => ({ url: it.https_url || it.url, title: it.title || it.instrument }));
+      .map((it) => ({
+        url: it.https_url || it.url, title: it.title || it.instrument,
+        site: it.site, drive: it.drive, look: pointing(it),
+        // a crop (subframe) shows less than the full view; hazcams are fisheyes aimed at the wheels
+        penalty: (it.extended?.sample_type === 'subframe' ? 10 : it.extended?.sample_type === 'full' ? 0 : 3) +
+                 (it.instrument.includes('HAZ') ? 15 : 0),
+      }));
   });
   photoCache.set(sol, job);
   job.catch(() => photoCache.delete(sol));   // allow a retry if the network failed
   return job;
+}
+
+/** Which way a Navcam or Hazcam photo looks: { az: compass degrees (0 = north, 90 = east),
+ *  el: degrees above the horizon }, or null. NASA gives the camera's direction in the rover's
+ *  frame (camera_vector) and the rover's tilt and heading (attitude, a quaternion w,x,y,z) that
+ *  turns it into the local frame: x = north, y = east, z = down. Mastcam records have neither. */
+function pointing(it) {
+  if (!/^(NAV|FHAZ|RHAZ)/.test(it.instrument || '') || !it.camera_vector || !it.attitude) return null;
+  const nums = (s) => s.replace(/[()]/g, '').split(',').map(Number);
+  const [vx, vy, vz] = nums(it.camera_vector), [w, x, y, z] = nums(it.attitude);
+  if (![vx, vy, vz, w, x, y, z].every(Number.isFinite)) return null;
+  // rotate v by the quaternion: v + w·t + q×t, with t = 2·(q×v)
+  const tx = 2 * (y * vz - z * vy), ty = 2 * (z * vx - x * vz), tz = 2 * (x * vy - y * vx);
+  const n = vx + w * tx + (y * tz - z * ty), e = vy + w * ty + (z * tx - x * tz), d = vz + w * tz + (x * ty - y * tx);
+  const deg = 180 / Math.PI;
+  return { az: (Math.atan2(e, n) * deg + 360) % 360, el: -Math.asin(Math.max(-1, Math.min(1, d))) * deg };
+}
+
+/** Signed turn from compass direction a to b, in degrees (-180..180, positive = turn right). */
+export const turnTo = (a, b) => ((b - a + 540) % 360) - 180;
+
+const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+/** e.g. "north-east (45°)" */
+export const compassText = (az) => `${COMPASS[Math.round(az / 45) % 8]} (${Math.round(az) % 360}°)`;
+
+/** The photo taken from `stop` (same site and drive) that looks most like direction (az, el).
+ *  Off-by-angle: sideways counts fully, up/down half (Navcam often aims down at the ground near
+ *  the rover). `keep` (the photo shown now) stays unless another is clearly better, so the
+ *  picture doesn't flicker while the user turns. Returns { photo, off } or null if none. */
+export function photoFacing(photos, stop, az, el, keep = null) {
+  const score = (ph) => Math.abs(turnTo(az, ph.look.az)) + 0.5 * Math.abs(el - ph.look.el) + ph.penalty;
+  let best = null;
+  for (const ph of photos) {
+    if (!ph.look || ph.site !== stop.site || ph.drive !== stop.drive) continue;
+    const s = score(ph) - (ph === keep ? 5 : 0);
+    if (!best || s < best.s) best = { photo: ph, s };
+  }
+  return best && { photo: best.photo, off: Math.abs(turnTo(az, best.photo.look.az)) };
 }
 
 /** Popup content: heading, optional elevation and extra text, then a scrollable grid of photos. */

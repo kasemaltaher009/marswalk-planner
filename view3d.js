@@ -21,7 +21,7 @@ const EYE_M = 8;
 
 /** config: config.json (its `context`, `globe` and `center` parts are used here).
  *  onMode('globe' | 'local') tells the page when the view switches between the globe and the terrain. */
-export function createView3D(container, { grid, onPick, config = null, dataUrl = 'data/', onMode = () => {} }) {
+export function createView3D(container, { grid, onPick, config = null, dataUrl = 'data/', onMode = () => {}, onLook = () => {} }) {
   const { W, H, cell, elev } = grid;
   const size = W * cell;
   const S = size / 2000;          // overview sizes were tuned for a 2 km area; scale them with it
@@ -433,6 +433,8 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   let hasEye = false;
   // Looking around in the astronaut view: the user's turn of the head on top of the walking direction
   let lookYaw = 0, lookPitch = 0;
+  // the last view direction passed to onLook (compass degrees, degrees above the horizon)
+  let told = null;
 
   /** Place the astronaut at grid (r, c), looking towards (lookR, lookC) along the route. */
   function setAstronaut(r, c, followIt = false, lookR = r, lookC = c) {
@@ -461,6 +463,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       scene.fog.near = POV_FOG.near; scene.fog.far = POV_FOG.far;   // dusty haze at ground level
       hasEye = false;                                    // jump (don't glide) to the eye on entry
       lookYaw = lookPitch = 0;
+      told = null;
     } else {
       controls.enabled = true;
       camera.fov = 45; camera.near = 5; camera.far = 40000 * S;
@@ -679,6 +682,12 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       const pitch = Math.max(-1.45, Math.min(1.45, Math.atan2(delta.y, Math.hypot(delta.x, delta.z)) + lookPitch));
       delta.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
       camera.lookAt(delta.add(camera.position));
+      // tell the page which way the astronaut looks (x = east, z = south, so north is -z)
+      const az = (180 - yaw * 180 / Math.PI + 720) % 360, el = pitch * 180 / Math.PI;
+      if (!told || Math.abs(((az - told.az + 540) % 360) - 180) > 2 || Math.abs(el - told.el) > 2) {
+        told = { az, el };
+        onLook(az, el);
+      }
       sizePovLabels();
       renderer.render(scene, camera);
       return;

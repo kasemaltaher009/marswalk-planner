@@ -8,11 +8,12 @@ import { map, astroMarker, walkedLine, latlngOf, latlngOfRC, cellAtLatLng } from
 import { elevChart, tempChart } from './charts.js';
 import { airTempAt } from './weather.js';
 import { nearestStop } from './curiosity.js';
-import { curiosityPhotos, photoViewer, orbitalCrop, ORBITAL_VIEW_M } from './photos.js';
+import { curiosityPhotos, photoViewer, orbitalCrop, ORBITAL_VIEW_M, photoFacing, turnTo, compassText } from './photos.js';
 import { setPhotoPin } from './view3dBridge.js';
 
 // t = hours since stepping out; tl = timeline of the route being played (see buildTimeline)
-export const play = { t: 0, playing: false, last: 0, tl: null, lastChart: 0, photoFor: null, photoJob: 0 };
+// look = which way the astronaut view faces; facing = the "photo of where you look" being shown
+export const play = { t: 0, playing: false, last: 0, tl: null, lastChart: 0, photoFor: null, photoJob: 0, look: null, facing: null };
 
 /** When the astronaut reaches and leaves every point of the path (hours from stepping out).
  *  stopH = hours of work at each target. */
@@ -84,7 +85,7 @@ export function stopPlayback(reset = false, replace = true) {
     if (wasPlaying && play.tl) renderPlayback();
     return;
   }
-  play.t = 0; play.tl = null; play.photoFor = null; play.photoJob++;
+  play.t = 0; play.tl = null; play.photoFor = null; play.photoJob++; play.facing = null;
   setWalkMode(false);
   $('hud').hidden = true;
   $('hPhoto').hidden = true;
@@ -187,7 +188,8 @@ export function renderPlayback() {
   $('hDose').textContent = `${(config.radiation_mSv_per_day * play.t / config.sol_hours).toFixed(3)} mSv`;
   $('hElapsed').textContent = fmtH(play.t);
   // Picture of the area: while working at a target, or whenever playback is stopped
-  showAreaPicture(stop !== null ? `t${stop}` : !play.playing ? `p${path[k]}` : null, r, c);
+  const spot = stop !== null ? `t${stop}` : !play.playing ? `p${path[k]}` : null;
+  showAreaPicture(spot && `${spot}:${state.activeView === 'pov' ? 'look' : 'all'}`, r, c);
 
   // progress bar + chart cursors (charts at ~10 fps)
   $('scrub').value = Math.round(1000 * play.t / tl.total);
@@ -207,6 +209,7 @@ function showAreaPicture(key, r, c) {
   play.photoFor = key;
   const box = $('hPhoto');
   const job = ++play.photoJob;
+  play.facing = null;
   setPhotoPin(null);
   if (key === null) { box.hidden = true; return; }
   const near = nearestStop(latlngOfRC(r, c));
@@ -217,6 +220,16 @@ function showAreaPicture(key, r, c) {
     if (job !== play.photoJob) return;          // the astronaut moved on meanwhile
     box.innerHTML = '';
     let caption;
+    // astronaut view: the photo Curiosity took from its stop in the direction you're looking
+    if (key.endsWith(':look') && photos.some((ph) => ph.look && ph.site === near.p.site && ph.drive === near.p.drive)) {
+      box.innerHTML = `<div class="viewer"><a target="_blank" rel="noopener" title="Open full size"><img alt=""></a>` +
+        `<p class="facing-none" hidden></p><span class="count"></span></div><figcaption></figcaption>`;
+      play.facing = { near, photos, shown: null };
+      updateFacing();
+      box.hidden = false;
+      setPhotoPin(cellAtLatLng(near.ll));
+      return;
+    }
     if (photos.length) {
       const cap = document.createElement('figcaption');
       box.append(photoViewer(photos, (i) => {
@@ -238,4 +251,47 @@ function showAreaPicture(key, r, c) {
     box.append(cap);
     box.hidden = false;
   });
+}
+
+/** Photos further than this to the side of where you look count as "not this way". */
+const FACING_MAX_OFF = 35;
+
+/** The astronaut view turned (compass degrees, degrees above the horizon). */
+export function lookedAt(az, el) {
+  play.look = { az, el };
+  if (play.facing) updateFacing();
+}
+
+/** Show the photo from Curiosity's stop that looks the way the astronaut looks. */
+function updateFacing() {
+  const f = play.facing, box = $('hPhoto');
+  const { az, el } = play.look ?? { az: 0, el: 0 };
+  const best = photoFacing(f.photos, f.near.p, az, el, f.shown);
+  const a = box.querySelector('a'), img = box.querySelector('img'), none = box.querySelector('.facing-none');
+  const badge = box.querySelector('.count'), cap = box.querySelector('figcaption');
+  const looking = compassText(az);
+  const pin = `from the purple camera pin, ${Math.round(f.near.d)} m from here`;
+  if (best.off > FACING_MAX_OFF) {
+    f.shown = null;
+    a.hidden = true; none.hidden = false;
+    const turn = turnTo(az, best.photo.look.az);
+    none.textContent = `No Curiosity photo this way. Turn ${Math.round(Math.abs(turn))}° ${turn > 0 ? 'right' : 'left'} for one.`;
+    badge.textContent = `Looking ${looking}`;
+    cap.textContent = cap.title = `Curiosity photographed this stop on sol ${f.near.p.sol}, ${pin}.`;
+    return;
+  }
+  a.hidden = false; none.hidden = true;
+  if (best.photo === f.shown) return;
+  f.shown = best.photo;
+  const ph = best.photo, dir = compassText(ph.look.az);
+  a.href = img.src = ph.url;
+  img.alt = `${ph.title}, looking ${dir}`;
+  badge.textContent = `Looking ${dir}`;
+  // ph.title already names the sol, e.g. "Sol 4996: Left Navigation Camera"
+  cap.textContent = cap.title = `What you're facing: ${ph.title}, looking ${dir}, taken ${pin}.`;
+}
+
+/** Redraw the picture after the view changed (each view shows the photos its own way). */
+export function refreshAreaPicture() {
+  if (play.tl && !$('hud').hidden) renderPlayback();
 }

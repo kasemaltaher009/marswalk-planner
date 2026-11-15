@@ -219,6 +219,9 @@ input[type=range] { width: 100%; }
   background: rgba(20, 24, 29, .88); border: 1px solid rgba(98, 214, 232, .45); border-radius: 10px;
   padding: 12px 14px; color: var(--text); backdrop-filter: blur(4px);
 }
+@container (min-width: 1141px) {   /* wide views: room for a bigger photo (narrow ones have their own layout) */
+  .hud:has(> .hud-photo:not([hidden])) { width: 320px; }
+}
 .hud-clock { display: flex; align-items: baseline; gap: 8px; }
 .hud-clock span { font-size: 40px; font-weight: 700; font-stretch: var(--cond); color: var(--cyan); line-height: 1; }
 .hud-clock small { color: var(--muted); font-size: 13px; }
@@ -249,6 +252,11 @@ input[type=range] { width: 100%; }
   background: rgba(20, 24, 29, .8); font-size: 12px; white-space: nowrap;
 }
 .hud-photo figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+/* astronaut view: Curiosity took no photo in the direction you're looking */
+.facing-none:not([hidden]) {
+  display: grid; place-items: center; margin: 0; padding: 12px 12px 36px; aspect-ratio: 4 / 3; border-radius: 6px;
+  background: #000; color: var(--muted); font-size: 13px; text-align: center; text-wrap: balance;
+}
 
 .player {
   position: absolute; left: 50%; translate: -50% 0; bottom: var(--above-dock); z-index: 700;   /* centred on the view dock */
@@ -426,6 +434,8 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
   .hud-photo { grid-column: 3; grid-row: 1 / span 3; margin: 0; width: fit-content; max-width: min(36cqw, 240px); cursor: pointer; }
   .hud-photo .viewer { width: fit-content; max-width: 100%; margin-inline: auto; }
   .hud-photo img, .hud-photo canvas.full { aspect-ratio: auto; height: 44px; width: auto; max-width: 100%; margin-inline: auto; border-radius: 4px; }
+  .hud-photo .facing-none:not([hidden]) { aspect-ratio: auto; height: 44px; width: 96px; padding: 4px; font-size: 10px; border-radius: 4px; overflow: hidden; }
+  .hud.open .hud-photo .facing-none:not([hidden]) { height: 124px; width: auto; padding-bottom: 28px; }
   .hud-photo figcaption { width: 0; min-width: 100%; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden; font-size: 11px; }
   .hud-more {
     display: grid; place-items: center; grid-column: 4; grid-row: 1 / span 3; align-self: stretch;
@@ -438,7 +448,7 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
   .hud:not(.open) :is(.hud-grid, .hud-suit .bar, .hud-photo figcaption, .viewer button, .viewer .count) { display: none; }
   /* opened: all readings, the photo at a readable size with its caption, arrow points down */
   .hud.open .hud-photo { min-width: 160px; cursor: auto; }
-  .hud.open .hud-photo img, .hud.open .hud-photo canvas.full { height: 100px; }
+  .hud.open .hud-photo img, .hud.open .hud-photo canvas.full { height: 124px; }
   .hud.open .hud-more svg { rotate: 180deg; }
 }
 /* phone width: no "local solar time" label, a smaller opened photo */
@@ -446,7 +456,7 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
   .hud:not([hidden]) { column-gap: 8px; }
   .hud-clock small { display: none; }
   .hud.open .hud-photo { min-width: 0; max-width: 32cqw; }
-  .hud.open .hud-photo img, .hud.open .hud-photo canvas.full { height: 84px; }
+  .hud.open .hud-photo img, .hud.open .hud-photo canvas.full { height: 96px; }
   .player .speed { display: none; }   /* room for End walk; playback keeps its speed */
 }
 
