@@ -103,6 +103,8 @@ export function refreshHint() {
   const onGlobe = state.activeView !== 'map' && document.querySelector('.stage').dataset.globe === 'true';
   $('clickHint').textContent = onGlobe && n === 0
     ? 'First click Gale Crater on the globe to fly down to the walking area.'
+    : state.activeView === 'pov'
+      ? 'Undo, × or Clear all edit the points here. Switch to Map or 3D terrain to place new ones.'
     : n === 0
       ? "Click the ground to place your start. The end of Curiosity's track is a good spot."
       : n <= MAX_TARGETS

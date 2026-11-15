@@ -178,14 +178,15 @@ input[type=range] { width: 100%; }
 .stage:has(#player:not([hidden])) .centre-stack { bottom: calc(var(--above-dock) + 64px); }
 
 /* Waypoints: what to click next, the points placed (× removes one), undo / clear, route options.
-   Not in the astronaut view or during a walk (the helmet display is up then). */
+   Not during a walk (the helmet display is up then). */
 .wpbar {
   pointer-events: auto; width: 100%;
   background: rgba(20, 24, 29, .94); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, .5); backdrop-filter: blur(6px);
   padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
 }
-.stage[data-view="pov"] .wpbar, .stage:has(#hud:not([hidden])) .wpbar { display: none; }
+.stage:not([data-view="pov"]):has(#hud:not([hidden])) .wpbar,
+body:has(#btnEnd:not([hidden])) .wpbar { display: none; }   /* the astronaut view always has the helmet display */
 .wp-hint { margin: 0; text-align: center; font-weight: 600; font-stretch: var(--semi); text-wrap: balance; }
 .wp-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); padding-top: 6px; }
 .wp-btns { display: flex; gap: 4px; margin-left: auto; flex: none; }

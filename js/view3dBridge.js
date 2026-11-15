@@ -15,11 +15,12 @@ let photoPin = null;    // where Curiosity took the photos in the helmet display
 // The slope layer has its own on/off setting in the astronaut view (off at first: it hides the ground).
 let povSlope = false;
 let otherSlope = null;  // the slope setting of the map and 3D views, kept while in the astronaut view
+let beforePov = '3d';   // the view the astronaut view was entered from (to go back to)
 
 /** name: 'map', '3d' (orbit around the terrain) or 'pov' (astronaut's eye view of the walk). */
 export function showView(name) {
   if (name === 'pov' && !state.plan) return;
-  if (name === 'pov' && state.activeView !== 'pov') { otherSlope = overlayOn('slope'); setOverlay('slope', povSlope); }
+  if (name === 'pov' && state.activeView !== 'pov') { beforePov = state.activeView; otherSlope = overlayOn('slope'); setOverlay('slope', povSlope); }
   if (name !== 'pov' && state.activeView === 'pov') { povSlope = overlayOn('slope'); setOverlay('slope', otherSlope); }
   state.activeView = name;
   markDock(name);
@@ -147,6 +148,11 @@ function fadeToMap() {
 const FADE_MS = 500;   // matches the opacity transition of #view3d in style.css
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
 let switching = false;
+
+/** Out of the astronaut view, back to the view it was entered from (e.g. the route was cleared). */
+export function leavePov() {
+  if (state.activeView === 'pov') showView(beforePov);
+}
 
 /** The view buttons. Map ↔ 3D terrain: the 3D camera glides to or from straight above what
  *  the map shows, and the two crossfade. Everything else switches at once. */

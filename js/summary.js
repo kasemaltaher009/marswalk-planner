@@ -6,7 +6,7 @@ import {
 } from './state.js';
 import { airTempAt } from './weather.js';
 import { drawElevChart, drawTempChart } from './charts.js';
-import { showView } from './view3dBridge.js';
+import { leavePov } from './view3dBridge.js';
 
 /** Each system gives its call: go, caution or nogo. Returns [[level, system, detail], …]. */
 function poll(route) {
@@ -61,7 +61,7 @@ export function renderSummary() {
   $('legendGhost').parentElement.hidden = !ghostShown;
   if (ghostShown) $('legendGhost').textContent = priorityName(plan.ghostPriority).toLowerCase();
   $('btnPOV').title = r ? 'Walk the route at eye level' : 'Plan a route first';
-  if (!r && state.activeView === 'pov') showView('3d');
+  if (!r) leavePov();   // no route to stand on: back to the map or 3D view you came from
   box.className = 'verdict-box';
   if (!r) {
     $('verdict').textContent = 'Standby';

@@ -126,9 +126,8 @@ function setupControls() {
   $('inSol').addEventListener('change', () => { renderWeather(); renderSummary(); });
 
   // Playback
-  $('btnPlay').addEventListener('click', async () => {
+  $('btnPlay').addEventListener('click', () => {
     if (play.playing) { stopPlayback(); return; }
-    if (state.activeView === '3d') await switchView('pov');   // walks from the 3D view are seen at eye level
     startPlayback();
   });
   $('btnEnd').addEventListener('click', () => stopPlayback(true));
