@@ -20,8 +20,12 @@ const DUST = '#7a4e34';     // ground beyond the planning area (only if the surr
 const EYE_M = 8;
 
 /** config: config.json (its `context`, `globe` and `center` parts are used here).
- *  onMode('globe' | 'local') tells the page when the view switches between the globe and the terrain. */
-export function createView3D(container, { grid, onPick, config = null, dataUrl = 'data/', onMode = () => {}, onLook = () => {} }) {
+ *  onMode('globe' | 'local') tells the page when the view switches between the globe and the terrain.
+ *  onLand: optional, for the first fly-in from the globe, which then ends looking straight down on
+ *  the area. landing() is called as the descent starts and says what the 2D map will show
+ *  ({x, y} = its centre, h = its height, as fractions of the area; y from the north edge);
+ *  done() is awaited at the bottom (the page fades over to the map there). */
+export function createView3D(container, { grid, onPick, config = null, dataUrl = 'data/', onMode = () => {}, onLook = () => {}, onLand = null }) {
   const { W, H, cell, elev } = grid;
   const size = W * cell;
   const S = size / 2000;          // overview sizes were tuned for a 2 km area; scale them with it
@@ -547,9 +551,60 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     camera.lookAt(controls.target);
   }
 
-  /** Globe → dive to Gale Crater → through the haze → down to the terrain. */
+  /** Straight above the area, seeing what the 2D map shows (see onLand). North stays up. */
+  function topDown({ x, y, h }) {
+    const c = x * W - 0.5, r = y * H - 0.5;
+    const target = new THREE.Vector3(worldX(c), heightAt(r, c), worldZ(r));
+    // (not lower than 150 m: zoomed far in, nearby hills would rise past the camera)
+    const d = Math.max(150, (h * size / 2) / Math.tan(camera.fov * Math.PI / 360));
+    return { pos: target.clone().add(new THREE.Vector3(0, d, d * 1e-3)), target };
+  }
+
+  // Map ↔ 3D: the camera glides between its orbit view and straight above what the map shows
+  // (no haze up there, like the map), and the page crossfades. A click skips the glide.
+  const NO_FOG = { near: 1e9, far: 2e9 };
+  function fogMix(e) {     // 0 = the usual haze … 1 = none
+    scene.fog.near = FOG.near * (NO_FOG.near / FOG.near) ** e;
+    scene.fog.far = FOG.far * (NO_FOG.far / FOG.far) ** e;
+  }
+  async function glide(to, ms, fog) {
+    flying = true; updateGlobeButton();
+    controls.enabled = false;
+    const from = { pos: camera.position.clone(), target: controls.target.clone() };
+    await animate(ms, (k) => { const e = easeInOut(k); moveCamera(from, to, e); fog(e); });
+    controls.enabled = !pov;
+    endFlight();
+  }
+  const canGlide = () => mode === 'local' && !flying && !pov;
+  let orbit = null;        // the orbit view to come back to after a trip to the map
+  /** 3D → map: glide up to straight above what the map shows. */
+  async function toTopDown(view) {
+    if (!canGlide()) return;
+    orbit = { pos: camera.position.clone(), target: controls.target.clone() };
+    await glide(topDown(view), 1200, (e) => fogMix(e));
+  }
+  /** Once the map shows: back to the orbit view and the usual haze, ready for next time. */
+  function restoreOrbit() {
+    if (!orbit || flying || pov) return;
+    camera.position.copy(orbit.pos); controls.target.copy(orbit.target); camera.lookAt(orbit.target);
+    fogMix(0);
+    orbit = null;
+  }
+  /** map → 3D: start straight above what the map shows, then glide down to the orbit view. */
+  async function fromTopDown(view) {
+    if (!canGlide()) return;
+    const back = { pos: camera.position.clone(), target: controls.target.clone() };
+    const start = topDown(view);
+    camera.position.copy(start.pos); controls.target.copy(start.target); camera.lookAt(start.target);
+    fogMix(1);
+    await glide(back, 1400, (e) => fogMix(1 - e));
+  }
+
+  /** Globe → dive to Gale Crater → through the haze → down to the terrain.
+   *  The first fly-in (with onLand) lands looking straight down and hands over to the 2D map. */
   async function flyIn() {
     if (!globeOK || mode !== 'globe' || flying) return;
+    const toMap = !!onLand && back === HOME && !pov;
     flying = true; updateGlobeButton();
     globe.controls.enabled = false;
     const d0 = globe.camera.position.length(), u0 = globe.camera.position.clone().normalize();
@@ -561,10 +616,18 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     setMode('local');
     haze.style.opacity = 1;
     controls.enabled = false;
+    const land = toMap ? topDown(onLand.landing()) : back;
+    if (toMap) Object.assign(scene.fog, { near: 1e9, far: 2e9 });   // no haze on the area seen from high up, like the map
     await animate(2800, (k) => {
-      moveCamera(HIGH, back, easeOut(k));
+      moveCamera(HIGH, land, easeOut(k));
       haze.style.opacity = Math.max(0, 1 - k / 0.4);
     });
+    if (toMap && !pov) {
+      await onLand.done();
+      // the 3D view is hidden now: next time it opens on the usual overview
+      camera.position.copy(HOME.pos); controls.target.copy(HOME.target);
+    }
+    if (toMap) Object.assign(scene.fog, pov ? POV_FOG : FOG);
     controls.enabled = !pov;
     endFlight();
   }
@@ -724,6 +787,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       if (!introDone) intro();
     },
     stop() { running = false; },
+    toTopDown, fromTopDown, restoreOrbit,
     get mode() { return mode; },
   };
 }

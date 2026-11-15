@@ -27,7 +27,7 @@ import { planRoute } from './route.js';
 import { renderSummary } from './summary.js';
 import { setupWeather, renderWeather } from './weather.js';
 import { play, startPlayback, stopPlayback, setPanels, scrubTo } from './playback.js';
-import { showView } from './view3dBridge.js';
+import { showView, switchView } from './view3dBridge.js';
 import { setupTour, maybeStartTour } from './tour.js';
 
 async function init() {
@@ -81,8 +81,6 @@ function setupBriefing() {
 // Buttons & inputs
 // ---------------------------------------------------------------------------
 function setupControls() {
-  $('btnUndo').addEventListener('click', () => { if (state.points.length) removePoint(state.points[state.points.length - 1]); });
-  $('btnClear').addEventListener('click', () => {
   // the × on each waypoint row removes that point
   $('pointList').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-i]');
@@ -92,6 +90,8 @@ function setupControls() {
     const next = $('pointList').querySelectorAll('button[data-i]');
     (next[Math.min(i, next.length - 1)] || $('btnUndo')).focus();   // keep keyboard focus in the list
   });
+  $('btnUndo').addEventListener('click', () => { if (state.points.length) removePoint(state.points[state.points.length - 1]); });
+  $('btnClear').addEventListener('click', () => {
     clearPoints();
     setStatus('Cleared. Click the ground to place a new start.');
   });
@@ -140,8 +140,8 @@ function setupControls() {
   showSpeed();
   $('scrub').addEventListener('input', () => scrubTo(Number($('scrub').value)));
 
-  $('btnMap').addEventListener('click', () => showView('map'));
-  $('btn3D').addEventListener('click', () => showView('3d'));
+  $('btnMap').addEventListener('click', () => switchView('map'));   // glides and crossfades with the 3D view
+  $('btn3D').addEventListener('click', () => switchView('3d'));
   $('btnPOV').addEventListener('click', () => showView('pov'));
 }
 

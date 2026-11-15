@@ -114,7 +114,7 @@ input[type=range] { width: 100%; }
   --dock-h: 58px; --above-dock: calc(var(--dock-h) + 22px);   /* view switch height; bottom of what sits above it */
 }
 #map, #view3d { position: absolute; inset: 0; }
-#map { background: #3b2a20; }
+#map { background: #3b2a20; z-index: 0; }   /* own stacking context: Leaflet panes stay under the 3D view */
 #view3d { background: var(--sky); cursor: grab; }
 /* the app opens on the Mars globe: dark space (not the terrain's sky) while the 3D view builds */
 .stage[data-globe="true"] #view3d { background: #05060a; }
@@ -123,6 +123,8 @@ input[type=range] { width: 100%; }
   color: var(--muted); font-size: 15px; letter-spacing: .04em;
 }
 #view3d:active { cursor: grabbing; }
+#view3d { transition: opacity .5s ease; }                    /* crossfade with the map (view3dBridge.js) */
+#view3d.fading { opacity: 0; pointer-events: none; }
 #view3d canvas { display: block; }
 #view3d canvas:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
 /* Mars globe fly-in: the dusty haze between globe and terrain, and the globe / terrain button */
@@ -419,7 +421,7 @@ body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating
 /* ---------- route draw-in (only when motion is OK) ---------- */
 @media (prefers-reduced-motion: reduce) {
   .astro::after { animation: none; }
-  .briefing.leaving { transition: none; }
+  .briefing.leaving, #view3d { transition: none; }
   .tour-wait::before { animation: none; }
 }
 
