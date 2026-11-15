@@ -112,9 +112,9 @@ function setupControls() {
   $('inSol').addEventListener('change', () => { renderWeather(); renderSummary(); });
 
   // Playback
-  $('btnPlay').addEventListener('click', () => {
+  $('btnPlay').addEventListener('click', async () => {
     if (play.playing) { stopPlayback(); return; }
-    if (state.activeView === '3d') showView('pov');   // walks from the 3D view are seen at eye level
+    if (state.activeView === '3d') await switchView('pov');   // walks from the 3D view are seen at eye level
     startPlayback();
   });
   $('btnEnd').addEventListener('click', () => stopPlayback(true));
@@ -142,7 +142,7 @@ function setupControls() {
 
   $('btnMap').addEventListener('click', () => switchView('map'));   // glides and crossfades with the 3D view
   $('btn3D').addEventListener('click', () => switchView('3d'));
-  $('btnPOV').addEventListener('click', () => showView('pov'));
+  $('btnPOV').addEventListener('click', () => switchView('pov'));
 }
 
 init();

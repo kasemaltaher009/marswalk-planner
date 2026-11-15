@@ -1,5 +1,5 @@
 /* The 2D map (Leaflet): base maps, overlay layers, and the readout under the mouse. */
-import { DATA, $, state } from './state.js';
+import { DATA, $, state, REDUCED_MOTION } from './state.js';
 import { cellAt, centreOfRC, rcOf } from './routing/grid.js';
 import { curiosityLayer } from './curiosity.js';
 import { addPoint } from './points.js';
@@ -46,7 +46,7 @@ export function setupMap() {
   }).addTo(map);
 
   const files = state.config.overlays || [];
-  const img = (file, opacity) => (files.includes(file) ? L.imageOverlay(DATA + file, area, { opacity }) : null);
+  const img = (file, opacity) => (files.includes(file) ? L.imageOverlay(DATA + file, area, { opacity, fullOpacity: opacity }) : null);
   layers.photo = img('photo.jpg', 1);
   layers.relief = img('hillshade.png', 1);
   layers.slope = img('slope.png', 0.7);
@@ -92,22 +92,60 @@ export function setupMap() {
 }
 
 export function setBase(name) {
-  ['photo', 'relief'].forEach((n) => {
-    const on = n === name;
-    document.querySelector(`[data-base="${n}"]`).setAttribute('aria-pressed', on);
-    if (!layers[n]) return;
-    if (on) layers[n].addTo(map).bringToBack(); else map.removeLayer(layers[n]);
-  });
+  const other = name === 'photo' ? 'relief' : 'photo';
+  [name, other].forEach((n) => document.querySelector(`[data-base="${n}"]`).setAttribute('aria-pressed', n === name));
+  const on = layers[name], off = layers[other];
+  cancelFade(on); cancelFade(off);
+  if (!on) hideLayer(off, false);
+  else {
+    // the new base fades in on top of the old one, which goes once it's covered
+    on.setOpacity(0);
+    showLayer(on, 1, () => hideLayer(off, false));
+    on.bringToBack();
+    if (off && map.hasLayer(off)) off.bringToBack();
+  }
   sync3DTexture();
 }
 
 export function setOverlay(name, on) {
   const btn = document.querySelector(`[data-overlay="${name}"]`);
   btn.setAttribute('aria-pressed', on);
-  if (layers[name]) { if (on) layers[name].addTo(map); else map.removeLayer(layers[name]); }
+  const layer = layers[name];
+  if (layer) { if (on) showLayer(layer, layer.options.fullOpacity); else hideLayer(layer); }
   const legend = $('legend' + name[0].toUpperCase() + name.slice(1));
-  if (legend) legend.hidden = !on || !layers[name];
+  if (legend) legend.hidden = !on || !layer;
   if (name === 'curiosity') sync3DTraverse(); else sync3DTexture();
+}
+
+// ---- Fading map layers in and out (photos and overlays; Curiosity's markers just switch) ----
+const FADE_MS = 400;   // matches the opacity transition of .leaflet-image-layer in style.css
+const fades = (layer) => layer instanceof L.ImageOverlay && !REDUCED_MOTION;
+function cancelFade(layer) {
+  if (!layer) return;
+  clearTimeout(layer._fadeTimer);
+  layer._fadeJob = (layer._fadeJob || 0) + 1;   // a pending fade-in or removal no longer counts
+}
+/** Add a layer (if needed) and fade it to `opacity`; `done` runs once it's fully shown. */
+function showLayer(layer, opacity, done) {
+  cancelFade(layer);
+  if (!fades(layer)) { layer.addTo(map); if (layer.setOpacity) layer.setOpacity(opacity); done?.(); return; }
+  if (!map.hasLayer(layer)) { layer.setOpacity(0); layer.addTo(map); }
+  const job = layer._fadeJob;
+  const go = () => requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (job !== layer._fadeJob) return;
+    layer.setOpacity(opacity);
+    layer._fadeTimer = setTimeout(() => done?.(), FADE_MS);
+  }));
+  // a big image downloading for the first time fades in once it has arrived
+  if (layer.getElement().complete) go(); else layer.once('load', go);
+}
+/** Fade a layer out (or, with fade = false, just drop it) and take it off the map. */
+function hideLayer(layer, fade = true) {
+  if (!layer || !map.hasLayer(layer)) return;
+  cancelFade(layer);
+  if (!fade || !fades(layer)) { map.removeLayer(layer); return; }
+  layer.setOpacity(0);
+  layer._fadeTimer = setTimeout(() => map.removeLayer(layer), FADE_MS);
 }
 export const overlayOn = (name) => !!layers[name] && document.querySelector(`[data-overlay="${name}"]`).getAttribute('aria-pressed') === 'true';
 

@@ -1,7 +1,7 @@
 /* Playback: the astronaut walks the route, with a helmet display (HUD) and a picture of the area. */
 import {
   state, $, RESERVE_H, PLAY_SECONDS_PER_HOUR, PHOTO_RADIUS_M,
-  playSpeed, startHour, stopHours, suitHours, selectedWeather, fmtH, fmtClock, fmtDist,
+  playSpeed, startHour, stopHours, suitHours, selectedWeather, fmtH, fmtClock, fmtDist, REDUCED_MOTION,
 } from './state.js';
 import { rcOf } from './routing/grid.js';
 import { map, astroMarker, walkedLine, latlngOf, latlngOfRC, cellAtLatLng } from './map.js';
@@ -67,10 +67,16 @@ function setWalkMode(on) {
 
 export function setPanels(show) {
   if (document.body.classList.contains('panels-hidden') === !show) return;
-  document.body.classList.toggle('panels-hidden', !show);
-  $('btnPanels').setAttribute('aria-expanded', show);
-  $('btnPanelsLabel').textContent = show ? 'Hide panels' : 'Show panels';
-  map?.invalidateSize();          // the 3D view notices the new size by itself
+  const apply = () => {
+    document.body.classList.toggle('panels-hidden', !show);
+    $('btnPanels').setAttribute('aria-expanded', show);
+    $('btnPanelsLabel').textContent = show ? 'Hide panels' : 'Show panels';
+    map?.invalidateSize();          // the 3D view notices the new size by itself
+  };
+  // The browser animates between the two layouts: the side panels and top bar slide away
+  // (or back) while the view grows (or shrinks). The pieces are named in style.css.
+  if (REDUCED_MOTION || !document.startViewTransition) apply();
+  else document.startViewTransition(apply);
 }
 
 /** Pause (and show a picture of where the astronaut stopped).

@@ -240,14 +240,37 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     const imgs = await Promise.all(layers.map((l) => loadImage(l.url)));
     if (job !== textureJob) return;    // a newer request won
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const { width: w, height: h } = canvas;
+    // compose the new picture aside, then crossfade the ground from the old one to it
+    nextCanvas ??= Object.assign(document.createElement('canvas'), { width: w, height: h });
+    const nctx = nextCanvas.getContext('2d');
+    nctx.clearRect(0, 0, w, h);
     imgs.forEach((im, i) => {
-      ctx.globalAlpha = layers[i].opacity;
-      ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
+      nctx.globalAlpha = layers[i].opacity;
+      nctx.drawImage(im, 0, 0, w, h);
     });
-    ctx.globalAlpha = 1;
-    texture.needsUpdate = true;
+    nctx.globalAlpha = 1;
+    const fade = textureShown && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    textureShown = true;
+    if (!fade) { ctx.clearRect(0, 0, w, h); ctx.drawImage(nextCanvas, 0, 0); texture.needsUpdate = true; return; }
+    prevCanvas ??= Object.assign(document.createElement('canvas'), { width: w, height: h });
+    prevCanvas.getContext('2d').drawImage(canvas, 0, 0);
+    const t0 = performance.now();
+    const step = (now) => {
+      if (job !== textureJob) return;
+      const t = Math.min(1, (now - t0) / TEXTURE_FADE_MS);
+      ctx.globalAlpha = 1;
+      ctx.drawImage(prevCanvas, 0, 0);
+      ctx.globalAlpha = t * t * (3 - 2 * t);   // ease in-out
+      ctx.drawImage(nextCanvas, 0, 0);
+      ctx.globalAlpha = 1;
+      texture.needsUpdate = true;
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }
+  const TEXTURE_FADE_MS = 400;
+  let prevCanvas = null, nextCanvas = null, textureShown = false;
 
   // ---- routes ----
   const routeGroup = new THREE.Group();

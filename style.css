@@ -18,6 +18,7 @@
   --wide: 100%;
   --semi: 87.5%;
   --cond: 75%;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);   /* quick start, soft landing: every UI motion uses it */
   font-family: "Saira", system-ui, sans-serif;
   font-size: 15px;
   color-scheme: dark;
@@ -219,10 +220,17 @@ input[type=range] { width: 100%; }
   display: inline-flex; align-items: center; gap: 9px; padding: 0 18px; border: 0; border-radius: 10px;
   background: none; color: var(--text); cursor: pointer; white-space: nowrap;
   font-size: 16px; font-weight: 650; font-stretch: var(--semi);
-  transition: background-color .15s, color .15s;
 }
 .viewdock button:hover:not(:disabled):not([aria-pressed="true"]) { background: var(--raised); }
-.viewdock button[aria-pressed="true"] { background: var(--cyan); color: var(--basalt); }
+.viewdock button[aria-pressed="true"] { color: var(--basalt); }
+.viewdock button { position: relative; z-index: 1; }
+/* the cyan highlight behind the current view, sliding between buttons (moveDockPill in view3dBridge.js) */
+.viewdock::before {
+  content: ""; position: absolute; top: 5px; bottom: 5px; left: 0; border-radius: 10px; background: var(--cyan);
+  width: var(--pill-w, 0); translate: var(--pill-x, 0) 0;
+}
+.viewdock[data-pill]::before { transition: translate .38s var(--ease-out), width .38s var(--ease-out); }
+.viewdock button { transition: background-color .15s, color .25s; }
 .viewdock button:disabled { color: var(--muted); cursor: not-allowed; }
 .viewdock svg { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
 .viewdock span { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
@@ -449,11 +457,80 @@ body.panels-hidden .player { width: min(600px, calc(100% - 24px)); }
 @keyframes tour-pulse { 50% { opacity: .25; } }
 body.panels-hidden #btnTour { display: none; }   /* walk mode: keep the floating corner row small */
 
-/* ---------- route draw-in (only when motion is OK) ---------- */
+/* ---------- motion ---------- */
+/* Map layers fade in and out (map.js: showLayer / hideLayer). Leaflet's own zoom transition wins while zooming. */
+.leaflet-image-layer { transition: opacity .4s ease; }
+
+/* Into / out of the astronaut view: a short dark visor blink (blink in view3dBridge.js) */
+.veil {
+  position: absolute; inset: 0; z-index: 640; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, #0b0d10 40%, #000 100%);
+  transition: opacity .18s ease;
+}
+.veil.on { opacity: 1; pointer-events: auto; }
+
+/* Pop-ups over the view: fade and rise in when shown, fade and sink when hidden.
+   [hidden] is display: none, so display flips at the end of the exit (allow-discrete). */
+.toast, .player, .hud, .legend, .readout, .globe-btn, .tour, .end, .hud-photo {
+  transition: opacity .26s var(--ease-out), transform .26s var(--ease-out), display .26s allow-discrete;
+}
+/* hidden by CSS rules, not [hidden]: they only fade in (an exit would just linger) */
+.wpbar, .wp-row, .wp-opts { transition: opacity .26s var(--ease-out), transform .26s var(--ease-out); }
+:is(.toast, .player, .hud, .tour, .end, .globe-btn)[hidden] { opacity: 0; transform: translateY(8px); }
+:is(.legend, .readout, .hud-photo)[hidden] { opacity: 0; }
+@starting-style {
+  :is(.toast, .wpbar, .player, .hud, .tour, .end, .globe-btn) { opacity: 0; transform: translateY(10px); }
+  :is(.legend, .readout, .wp-row, .wp-opts, .hud-photo) { opacity: 0; }
+  .points li { opacity: 0; transform: scale(.6); }
+  .rail section:not([hidden]) { opacity: 0; transform: translateY(6px); }
+}
+.points li { transition: opacity .22s var(--ease-out), transform .22s var(--ease-out); }
+.rail section { transition: opacity .3s var(--ease-out), transform .3s var(--ease-out); }
+/* the tour's ring and card glide from one part of the page to the next */
+.tour-ring { transition: top .32s var(--ease-out), left .32s var(--ease-out), width .32s var(--ease-out), height .32s var(--ease-out); }
+.tour { transition-property: opacity, transform, display, top, left; transition-duration: .26s, .26s, .26s, .32s, .32s; }
+/* narrow helmet display: opening it slides the readings in */
+.hud .hud-grid { transition: opacity .25s var(--ease-out); }
+@starting-style { .hud.open .hud-grid { opacity: 0; } }
+/* buttons answer the press */
+:is(.viewdock, .seg, .chips, .wp-btns, .row) button, .play, .end, .panels-btn, .primary, .globe-btn {
+  transition: background-color .15s, color .2s, border-color .15s, scale .12s, opacity .26s var(--ease-out), transform .26s var(--ease-out), display .26s allow-discrete;
+}
+:is(.viewdock, .seg, .chips, .wp-btns, .row) button:active:not(:disabled), .play:active, .end:active, .panels-btn:active, .primary:active:not(:disabled), .globe-btn:active:not(:disabled) { scale: .96; }
+.seg button, .chips button::before { transition: background-color .2s, color .2s, border-color .2s; }
+
+/* Hide / Show panels: one View Transition (setPanels in playback.js). The side panels slide off
+   their edges, the top bar lifts away, the view and the floating buttons glide to their new places. */
+.rail-left { view-transition-name: rail-left; }
+.rail-right { view-transition-name: rail-right; }
+.topbar { view-transition-name: topbar; }
+.topctl { view-transition-name: topctl; }
+.stage { view-transition-name: stage; }
+.stage .toolbar { view-transition-name: toolbar; }
+::view-transition-group(*) { animation-duration: .42s; animation-timing-function: var(--ease-out); }
+::view-transition-old(*), ::view-transition-new(*) { animation-duration: .42s; }
+/* the view keeps its picture filling the box while the box grows, instead of stretching */
+::view-transition-old(stage), ::view-transition-new(stage) { height: 100%; object-fit: cover; }
+::view-transition-old(stage) { animation: none; opacity: 0; }   /* the live new view shows at once */
+::view-transition-new(stage) { animation: none; }
+::view-transition-old(rail-left):only-child { animation: .42s var(--ease-out) both vt-out-left; }
+::view-transition-new(rail-left):only-child { animation: .42s var(--ease-out) both vt-in-left; }
+::view-transition-old(rail-right):only-child { animation: .42s var(--ease-out) both vt-out-right; }
+::view-transition-new(rail-right):only-child { animation: .42s var(--ease-out) both vt-in-right; }
+::view-transition-old(topbar):only-child { animation: .3s var(--ease-out) both vt-out-up; }
+::view-transition-new(topbar):only-child { animation: .42s var(--ease-out) both vt-in-up; }
+@keyframes vt-out-left { to { transform: translateX(-100%); opacity: .4; } }
+@keyframes vt-in-left { from { transform: translateX(-100%); opacity: .4; } }
+@keyframes vt-out-right { to { transform: translateX(100%); opacity: .4; } }
+@keyframes vt-in-right { from { transform: translateX(100%); opacity: .4; } }
+@keyframes vt-out-up { to { transform: translateY(-100%); opacity: 0; } }
+@keyframes vt-in-up { from { transform: translateY(-100%); opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   .astro::after { animation: none; }
-  .briefing.leaving, #view3d { transition: none; }
   .tour-wait::before { animation: none; }
+  *, *::before, *::after { transition-duration: 0s !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 
 /* ---------- narrow screens: stack ---------- */

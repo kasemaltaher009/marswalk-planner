@@ -25,6 +25,7 @@ export function showView(name) {
   $('btnMap').setAttribute('aria-pressed', name === 'map');
   $('btn3D').setAttribute('aria-pressed', name === '3d');
   $('btnPOV').setAttribute('aria-pressed', name === 'pov');
+  moveDockPill();
   $('map').hidden = name !== 'map';
   $('view3d').hidden = name === 'map';
   $('readout').hidden = true;
@@ -82,6 +83,23 @@ export function showView(name) {
   });
 }
 
+/** The cyan highlight behind the current view button slides from one button to the next. */
+function moveDockPill() {
+  const dock = document.querySelector('.viewdock');
+  const btn = dock.querySelector('button[aria-pressed="true"]');
+  if (!btn) return;
+  dock.style.setProperty('--pill-x', `${btn.offsetLeft}px`);
+  dock.style.setProperty('--pill-w', `${btn.offsetWidth}px`);
+  // the first placement (and resizes) don't slide
+  if (!dock.dataset.pill) requestAnimationFrame(() => { dock.dataset.pill = 'on'; });
+}
+// button widths change with the window and when the astronaut view button is enabled
+new ResizeObserver(() => {
+  const dock = document.querySelector('.viewdock');
+  delete dock.dataset.pill;
+  moveDockPill();
+}).observe(document.querySelector('.viewdock'));
+
 /** The first fly-in from the globe comes down to look straight at what the map shows, then fades
  *  over to the map. This opens the map at its starting view, still covered by the 3D view,
  *  and says what it shows (centre and height as fractions of the area, y from the north edge). */
@@ -130,11 +148,15 @@ let switching = false;
 export async function switchView(name) {
   const from = state.activeView;
   if (switching || name === from) return;
-  const smooth = state.view3d && !REDUCED_MOTION && ((from === 'map' && name === '3d') || (from === '3d' && name === 'map'));
-  if (!smooth) { showView(name); return; }
+  if (name === 'pov' && !state.plan) return;
+  // before the 3D view exists (or with reduced motion) there's nothing to glide or blink
+  if (!state.view3d || REDUCED_MOTION) { showView(name); return; }
+  const glide = (from === 'map' && name === '3d') || (from === '3d' && name === 'map');
   switching = true;
   try {
-    if (name === 'map') {
+    if (!glide) {
+      await blink(name);
+    } else if (name === 'map') {
       await state.view3d.toTopDown(mapView());   // the map is now visible under the 3D view
       await fadeToMap();
       state.view3d.restoreOrbit();
@@ -143,6 +165,19 @@ export async function switchView(name) {
     }
   } finally { switching = false; }
 }
+
+/** Into or out of the astronaut view: a short dark "visor blink" hides the jump,
+ *  and lifts once the new view has drawn a couple of frames. */
+async function blink(name) {
+  const veil = $('veil');
+  veil.classList.add('on');
+  await new Promise((r) => setTimeout(r, BLINK_MS));
+  showView(name);
+  await view3dLoading;
+  await nextFrame(); await nextFrame(); await nextFrame();
+  veil.classList.remove('on');
+}
+const BLINK_MS = 180;   // matches the opacity transition of .veil in style.css
 
 async function mapTo3D() {
   const view = mapView();
