@@ -540,7 +540,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   globeBtn.addEventListener('click', () => (mode === 'local' ? flyOut() : flyIn()));
 
   function updateGlobeButton() {
-    globeBtn.hidden = !globeOK || pov;
+    globeBtn.hidden = !globeOK || pov || mode !== 'local';   // no "Fly to Gale Crater" button on the globe: click Gale itself
     globeBtn.textContent = mode === 'local' ? 'Zoom out to Mars' : 'Fly to Gale Crater';
     globeBtn.disabled = flying;
   }
