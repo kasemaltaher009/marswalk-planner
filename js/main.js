@@ -107,6 +107,18 @@ function setupControls() {
     startPlayback();
   });
   $('btnEnd').addEventListener('click', () => stopPlayback(true));
+  // Narrow views: the helmet display is a slim bar until opened (the arrow, or a tap on the photo)
+  const hudOpen = (open) => {
+    $('hud').classList.toggle('open', open);
+    $('btnHudMore').setAttribute('aria-expanded', open);
+    $('btnHudMore').setAttribute('aria-label', open ? 'Hide walk details' : 'Show walk details');
+  };
+  $('btnHudMore').addEventListener('click', () => hudOpen(!$('hud').classList.contains('open')));
+  $('hPhoto').addEventListener('click', (e) => {
+    if (getComputedStyle($('btnHudMore')).display === 'none' || $('hud').classList.contains('open')) return;
+    e.preventDefault();   // in the slim bar the thumbnail opens the details, not the full-size photo
+    hudOpen(true);
+  }, true);
   $('btnPanels').addEventListener('click', () => setPanels(document.body.classList.contains('panels-hidden')));
   const showSpeed = () => {
     const s = playSpeed();

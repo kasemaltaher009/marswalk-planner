@@ -222,7 +222,7 @@ function showAreaPicture(key, r, c) {
       box.append(photoViewer(photos, (i) => {
         // photos[i].title already names the sol, e.g. "Sol 4996: Left Navigation Camera"
         const pin = state.activeView === 'map' ? '' : ', at the purple camera pin';
-        cap.textContent = `${photos[i].title}. Curiosity took this ${Math.round(near.d)} m from here${pin}.`;
+        cap.textContent = cap.title = `${photos[i].title}. Curiosity took this ${Math.round(near.d)} m from here${pin}.`;
       }));
       box.append(cap);
       box.hidden = false;
@@ -234,7 +234,7 @@ function showAreaPicture(key, r, c) {
       caption = `This spot from orbit (HiRISE, ${ORBITAL_VIEW_M} m across). Curiosity never stopped within ${PHOTO_RADIUS_M} m of here.`;
     } else { box.hidden = true; return; }
     const cap = document.createElement('figcaption');
-    cap.textContent = caption;
+    cap.textContent = cap.title = caption;
     box.append(cap);
     box.hidden = false;
   });

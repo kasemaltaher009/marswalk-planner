@@ -137,6 +137,10 @@
       <div class="hud" id="hud" hidden>
         <div class="hud-clock"><span id="hClock">10:00</span><small>local solar time</small></div>
         <p class="hud-status" id="hStatus"></p>
+        <!-- narrow views only: the helmet display starts as a slim bar; this opens the details -->
+        <button type="button" class="hud-more" id="btnHudMore" aria-expanded="false" aria-controls="hud" aria-label="Show walk details">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 10 4-4 4 4"/></svg>
+        </button>
         <div class="hud-suit">
           <div class="bar"><i id="hSuitBar"></i></div>
           <span id="hSuit"></span>
