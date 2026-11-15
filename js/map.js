@@ -1,5 +1,5 @@
 /* The 2D map (Leaflet): base maps, overlay layers, and the readout under the mouse. */
-import { DATA, $, state } from './state.js';
+import { DATA, $, state, REDUCED_MOTION, fmtElev, SAND_FILTER } from './state.js';
 import { cellAt, centreOfRC, rcOf } from './routing/grid.js';
 import { curiosityLayer } from './curiosity.js';
 import { addPoint } from './points.js';
@@ -46,11 +46,12 @@ export function setupMap() {
   }).addTo(map);
 
   const files = state.config.overlays || [];
-  const img = (file, opacity) => (files.includes(file) ? L.imageOverlay(DATA + file, area, { opacity }) : null);
+  const img = (file, opacity) => (files.includes(file) ? L.imageOverlay(DATA + file, area, { opacity, fullOpacity: opacity }) : null);
   layers.photo = img('photo.jpg', 1);
   layers.relief = img('hillshade.png', 1);
   layers.slope = img('slope.png', 0.7);
   layers.ground = img('ground.png', 0.8);
+  layers.ground?.on('add', (e) => { e.target.getElement().style.filter = SAND_FILTER; });
   layers.curiosity = state.curiosity ? curiosityLayer() : null;
 
   // Toolbar buttons → layers. Hide buttons for files that don't exist.
@@ -92,23 +93,83 @@ export function setupMap() {
 }
 
 export function setBase(name) {
-  ['photo', 'relief'].forEach((n) => {
-    const on = n === name;
-    document.querySelector(`[data-base="${n}"]`).setAttribute('aria-pressed', on);
-    if (!layers[n]) return;
-    if (on) layers[n].addTo(map).bringToBack(); else map.removeLayer(layers[n]);
-  });
+  const other = name === 'photo' ? 'relief' : 'photo';
+  [name, other].forEach((n) => document.querySelector(`[data-base="${n}"]`).setAttribute('aria-pressed', n === name));
+  const on = layers[name], off = layers[other];
+  cancelFade(on); cancelFade(off);
+  if (!on) hideLayer(off, false);
+  else {
+    // the new base fades in on top of the old one, which goes once it's covered
+    on.setOpacity(0);
+    showLayer(on, 1, () => hideLayer(off, false));
+    on.bringToBack();
+    if (off && map.hasLayer(off)) off.bringToBack();
+  }
   sync3DTexture();
 }
 
 export function setOverlay(name, on) {
   const btn = document.querySelector(`[data-overlay="${name}"]`);
   btn.setAttribute('aria-pressed', on);
-  if (layers[name]) { if (on) layers[name].addTo(map); else map.removeLayer(layers[name]); }
+  const layer = layers[name];
+  if (layer) { if (on) showLayer(layer, layer.options.fullOpacity); else hideLayer(layer); }
   const legend = $('legend' + name[0].toUpperCase() + name.slice(1));
-  if (legend) legend.hidden = !on || !layers[name];
+  if (legend) legend.hidden = !on || !layer;
   if (name === 'curiosity') sync3DTraverse(); else sync3DTexture();
 }
+
+// ---- Fading map layers in and out (photos and overlays; Curiosity's markers just switch) ----
+const FADE_MS = 400;   // matches the opacity transition of .leaflet-image-layer in style.css
+const fades = (layer) => layer instanceof L.ImageOverlay && !REDUCED_MOTION;
+function cancelFade(layer) {
+  if (!layer) return;
+  clearTimeout(layer._fadeTimer);
+  layer._fadeJob = (layer._fadeJob || 0) + 1;   // a pending fade-in or removal no longer counts
+}
+/** Add a layer (if needed) and fade it to `opacity`; `done` runs once it's fully shown. */
+function showLayer(layer, opacity, done) {
+  cancelFade(layer);
+  if (!fades(layer)) { layer.addTo(map); if (layer.setOpacity) layer.setOpacity(opacity); done?.(); return; }
+  if (!map.hasLayer(layer)) { layer.setOpacity(0); layer.addTo(map); }
+  const job = layer._fadeJob;
+  const go = () => requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (job !== layer._fadeJob) return;
+    layer.setOpacity(opacity);
+    layer._fadeTimer = setTimeout(() => done?.(), FADE_MS);
+  }));
+  // a big image downloading for the first time fades in once it has arrived
+  if (layer.getElement().complete) go(); else layer.once('load', go);
+}
+/** Fade a layer out (or, with fade = false, just drop it) and take it off the map. */
+function hideLayer(layer, fade = true) {
+  if (!layer || !map.hasLayer(layer)) return;
+  cancelFade(layer);
+  if (!fade || !fades(layer)) { map.removeLayer(layer); return; }
+  layer.setOpacity(0);
+  layer._fadeTimer = setTimeout(() => map.removeLayer(layer), FADE_MS);
+}
+/** After planning: if the route runs under the cards over the map (layer buttons and legends at
+ *  the left, the verdict card at the right, waypoints / player / view switch at the bottom), move
+ *  the map so the route sits in the free space between them. Never zooms in; when the view is too
+ *  small to have free space (phones), the map stays where it is. */
+export function revealRoute(latlngs) {
+  const box = map.getContainer().getBoundingClientRect();
+  const shown = (q) => [...document.querySelectorAll(q)].filter((e) => !e.hidden && e.getClientRects().length)
+    .map((e) => e.getBoundingClientRect());
+  const gap = 12;
+  const left = Math.max(gap, ...shown('.basecol').map((r) => r.right - box.left + gap));
+  const top = Math.max(gap, ...shown('.chips').map((r) => r.bottom - box.top + gap));
+  const right = Math.max(gap, ...shown('#summary').map((r) => box.right - r.left + gap));
+  const bottom = Math.max(gap, ...shown('.centre-stack > *, #player, .viewdock').map((r) => box.bottom - r.top + gap));
+  if (box.width - left - right < 160 || box.height - top - bottom < 160) return;
+
+  const bounds = L.latLngBounds(latlngs);
+  const nw = map.latLngToContainerPoint(bounds.getNorthWest()), se = map.latLngToContainerPoint(bounds.getSouthEast());
+  if (nw.x >= left && nw.y >= top && se.x <= box.width - right && se.y <= box.height - bottom) return;   // all in view
+  map.fitBounds(bounds, { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom],
+                          maxZoom: map.getZoom(), animate: !REDUCED_MOTION });
+}
+
 export const overlayOn = (name) => !!layers[name] && document.querySelector(`[data-overlay="${name}"]`).getAttribute('aria-pressed') === 'true';
 
 function showReadout(latlng) {
@@ -120,6 +181,6 @@ function showReadout(latlng) {
   if (idx < 0) { box.textContent = 'Outside the planning area'; return; }
   const s = grid.slope[idx], cost = grid.cost[idx];
   const cls = cost === 255 ? 'too steep to walk' : s < 10 ? 'easy walking' : s < 15 ? 'hard walking' : 'very hard walking';
-  box.innerHTML = `${grid.elev[idx].toFixed(0)} m, slope ${s.toFixed(0)}°, ${cls}` +
+  box.innerHTML = `${fmtElev(grid.elev[idx])}, slope ${s.toFixed(0)}°, ${cls}` +
     `<small>${latlng.lat.toFixed(5)}° ${latlng.lng.toFixed(5)}°E</small>`;
 }

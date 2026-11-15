@@ -8,20 +8,29 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGlobe, latLonToVec } from './globe3d.js';
+import { createGlobe } from './globe3d.js';
+import { createAstronaut } from './astronaut3d.js';
 
 const EXAGGERATION = 1.5;   // vertical exaggeration so the relief reads at a glance
 const MESH_STEP = 1;        // mesh vertex on every grid cell (5 m), so eye-level views sit on the ground
 const SKY = '#c99f78';      // Mars daytime sky
 const DUST = '#7a4e34';     // ground beyond the planning area (only if the surroundings fail to load)
-const EYE_M = 3;            // astronaut-view camera height above the ground (in exaggerated metres)
+// Astronaut-view camera height above the ground. Higher than a real eye (~1.7 m) on purpose: the
+// ground is a 5 m mesh under a 2 m/px photo, so at true height the blurry patch at your feet fills
+// the bottom of the screen and it feels like lying on the ground. At 8 it reads as standing.
+const EYE_M = 8;
 
 /** config: config.json (its `context`, `globe` and `center` parts are used here).
- *  onMode('globe' | 'local') tells the page when the view switches between the globe and the terrain. */
-export function createView3D(container, { grid, onPick, config = null, dataUrl = 'data/', onMode = () => {} }) {
+ *  onMode('globe' | 'local') tells the page when the view switches between the globe and the terrain.
+ *  onLand: optional, for the first fly-in from the globe, which then ends looking straight down on
+ *  the area. landing() is called as the descent starts and says what the 2D map will show
+ *  ({x, y} = its centre, h = its height, as fractions of the area; y from the north edge);
+ *  done() is awaited at the bottom (the page fades over to the map there). */
+export function createView3D(container, { grid, onPick, config = null, dataUrl = 'data/', onMode = () => {}, onLook = () => {}, onLand = null }) {
   const { W, H, cell, elev } = grid;
   const size = W * cell;
   const S = size / 2000;          // overview sizes were tuned for a 2 km area; scale them with it
+  const M = 0.4 * S;              // routes, pins and the astronaut: kept slim so they don't hide the terrain
   let minE = Infinity;
   for (const e of elev) if (e < minE) minE = e;
 
@@ -233,14 +242,39 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     const imgs = await Promise.all(layers.map((l) => loadImage(l.url)));
     if (job !== textureJob) return;    // a newer request won
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const { width: w, height: h } = canvas;
+    // compose the new picture aside, then crossfade the ground from the old one to it
+    nextCanvas ??= Object.assign(document.createElement('canvas'), { width: w, height: h });
+    const nctx = nextCanvas.getContext('2d');
+    nctx.clearRect(0, 0, w, h);
     imgs.forEach((im, i) => {
-      ctx.globalAlpha = layers[i].opacity;
-      ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
+      nctx.globalAlpha = layers[i].opacity;
+      nctx.filter = layers[i].filter || 'none';
+      nctx.drawImage(im, 0, 0, w, h);
     });
-    ctx.globalAlpha = 1;
-    texture.needsUpdate = true;
+    nctx.filter = 'none';
+    nctx.globalAlpha = 1;
+    const fade = textureShown && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    textureShown = true;
+    if (!fade) { ctx.clearRect(0, 0, w, h); ctx.drawImage(nextCanvas, 0, 0); texture.needsUpdate = true; return; }
+    prevCanvas ??= Object.assign(document.createElement('canvas'), { width: w, height: h });
+    prevCanvas.getContext('2d').drawImage(canvas, 0, 0);
+    const t0 = performance.now();
+    const step = (now) => {
+      if (job !== textureJob) return;
+      const t = Math.min(1, (now - t0) / TEXTURE_FADE_MS);
+      ctx.globalAlpha = 1;
+      ctx.drawImage(prevCanvas, 0, 0);
+      ctx.globalAlpha = t * t * (3 - 2 * t);   // ease in-out
+      ctx.drawImage(nextCanvas, 0, 0);
+      ctx.globalAlpha = 1;
+      texture.needsUpdate = true;
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }
+  const TEXTURE_FADE_MS = 400;
+  let prevCanvas = null, nextCanvas = null, textureShown = false;
 
   // ---- routes ----
   const routeGroup = new THREE.Group();
@@ -294,7 +328,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       return;
     }
     for (const { path, color, radius, opacity = 1, lane } of list) {
-      const mesh = tube(sample(path, 2), { color, opacity, radius: radius * S, lift: radius * S + 2, offset: lane ? 6 * S : 0 });
+      const mesh = tube(sample(path, 2), { color, opacity, radius: radius * M, lift: radius * M + 2, offset: lane ? 6 * M : 0 });
       if (mesh) routeGroup.add(mesh);
     }
   }
@@ -315,7 +349,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     for (const rc of lines) {
       const mesh = tube(rc, pov
         ? { radius: 0.12, lift: 0.6, color: '#efe8dc', opacity: 0.35 }
-        : { radius: 1.6 * S, lift: 3, color: '#efe8dc', opacity: 0.4 });
+        : { radius: 1.6 * M, lift: 3, color: '#efe8dc', opacity: 0.4 });
       if (mesh) traverseGroup.add(mesh);
     }
   }
@@ -346,21 +380,23 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     return s;
   }
   const STAKE_M = 2;                 // astronaut view: badge height and the thin stake under the camera pin
-  // Overview: big discs on 70 m poles. Astronaut view: small badges about head height that
-  // keep a fixed size on screen (~3% of its height), so a nearby one never blocks the view.
+  // Overview: big discs on 70 m poles. Astronaut view: badges about head height, sized on screen:
+  // ~3% of its height when far, growing as you walk up to one (closer than POV_GROW_M), capped
+  // at POV_MAX so even one right beside you never blocks the view (see sizePovLabels).
+  const POV_MIN = 0.04, POV_MAX = 0.16, POV_GROW_M = 120;
   function sizeLabel(s) {
     s.material.sizeAttenuation = !pov;
     s.material.needsUpdate = true;
-    const k = pov ? 0.04 : 48 * S;
+    const k = pov ? POV_MIN : 34 * M;
     s.scale.set(k, k, 1);
-    s.position.y = pov ? STAKE_M : 95 * S;
+    s.position.y = pov ? STAKE_M : 85 * M;
   }
   /** A badge on a 70 m pole at grid cell idx. In the astronaut view the pole is hidden (it could
    *  stand right in front of the eye), unless `stake` asks for a thin one, like a pin in the ground. */
   function marker(idx, sprite, stake = false) {
     const g = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.6 * S, 1.6 * S, 70 * S, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
-    pole.position.y = 35 * S;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.6 * M, 1.6 * M, 70 * M, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+    pole.position.y = 35 * M;
     pole.userData.pole = true;
     pole.visible = !pov;
     g.add(pole);
@@ -376,6 +412,16 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     g.add(sprite);
     g.position.copy(toWorld(...rcOf(idx)));
     return g;
+  }
+  /** Astronaut view, every frame: each badge's screen size from how far away it is. */
+  function sizePovLabels() {
+    for (const group of [markerGroup, pinGroup]) {
+      for (const g of group.children) {
+        const d = Math.hypot(g.position.x - camera.position.x, g.position.z - camera.position.z);
+        const k = Math.min(POV_MAX, Math.max(POV_MIN, POV_MIN * POV_GROW_M / Math.max(d, 1)));
+        for (const o of g.children) if (o.userData.label) o.scale.set(k, k, 1);
+      }
+    }
   }
   function setMarkers(list) {
     clear(markerGroup);
@@ -402,28 +448,36 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   }
 
   // ---- astronaut ----
-  const astro = new THREE.Group();
-  astro.scale.setScalar(S);
-  const body = new THREE.Mesh(new THREE.SphereGeometry(15, 20, 14), new THREE.MeshBasicMaterial({ color: '#62d6e8' }));
-  body.position.y = 30;
-  const halo = new THREE.Mesh(new THREE.RingGeometry(22, 28, 32), new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide }));
-  halo.rotation.x = -Math.PI / 2;
-  halo.position.y = 3;
-  astro.add(body, halo);
+  // suited figure from astronaut3d.js (≈ 62 units tall, feet at 0, faces +z); oversized like the pins
+  const astro = createAstronaut();
+  astro.scale.setScalar(M);
   astro.visible = false;
   scene.add(astro);
+  // its walk: which way it faces (smoothed in the render loop) and the stride animation
+  let faceGoal = null;
+  const STRIDE = 50 * M;                  // world distance per full stride (two steps) at this size
+  const walkAnim = { phase: 0, amount: 0, last: new THREE.Vector3(), has: false };
   let follow = false;
+  let pullBack = false;           // at the start of a walk, back the follow camera off to FOLLOW_MIN_DIST
+  const FOLLOW_MIN_DIST = 220 * S;   // so the walker, pins and route read together (zooming in later is free)
   // Astronaut view: where the eye is and where it looks (smoothed in the render loop)
   const eyeGoal = new THREE.Vector3(), lookGoal = new THREE.Vector3(), lookNow = new THREE.Vector3();
   let hasEye = false;
   // Looking around in the astronaut view: the user's turn of the head on top of the walking direction
   let lookYaw = 0, lookPitch = 0;
+  // the last view direction passed to onLook (compass degrees, degrees above the horizon)
+  let told = null;
 
   /** Place the astronaut at grid (r, c), looking towards (lookR, lookC) along the route. */
   function setAstronaut(r, c, followIt = false, lookR = r, lookC = c) {
-    if (r == null) { astro.visible = false; follow = false; return; }
+    if (r == null) { astro.visible = false; follow = false; walkAnim.has = false; faceGoal = null; return; }
     astro.position.copy(toWorld(r, c));
+    if (Math.hypot(lookR - r, lookC - c) > 0.5) {
+      faceGoal = Math.atan2(lookC - c, lookR - r);                      // x = east (cols), z = south (rows)
+      if (!walkAnim.has) astro.rotation.y = faceGoal;                  // first placement: face the path at once
+    }
     astro.visible = !pov;
+    if (!walkAnim.has && followIt) pullBack = true;   // a walk begins: ease the camera back if it is close
     follow = followIt;
     eyeGoal.copy(toWorld(r, c, EYE_M));
     // only turn the head if the look-ahead point is a real direction (not where we stand)
@@ -446,6 +500,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       scene.fog.near = POV_FOG.near; scene.fog.far = POV_FOG.far;   // dusty haze at ground level
       hasEye = false;                                    // jump (don't glide) to the eye on entry
       lookYaw = lookPitch = 0;
+      told = null;
     } else {
       controls.enabled = true;
       camera.fov = 45; camera.near = 5; camera.far = 40000 * S;
@@ -485,7 +540,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   globeBtn.addEventListener('click', () => (mode === 'local' ? flyOut() : flyIn()));
 
   function updateGlobeButton() {
-    globeBtn.hidden = !globeOK || pov;
+    globeBtn.hidden = !globeOK || pov || mode !== 'local';   // no "Fly to Gale Crater" button on the globe: click Gale itself
     globeBtn.textContent = mode === 'local' ? 'Zoom out to Mars' : 'Fly to Gale Crater';
     globeBtn.disabled = flying;
   }
@@ -529,9 +584,60 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     camera.lookAt(controls.target);
   }
 
-  /** Globe → dive to Gale Crater → through the haze → down to the terrain. */
+  /** Straight above the area, seeing what the 2D map shows (see onLand). North stays up. */
+  function topDown({ x, y, h }) {
+    const c = x * W - 0.5, r = y * H - 0.5;
+    const target = new THREE.Vector3(worldX(c), heightAt(r, c), worldZ(r));
+    // (not lower than 150 m: zoomed far in, nearby hills would rise past the camera)
+    const d = Math.max(150, (h * size / 2) / Math.tan(camera.fov * Math.PI / 360));
+    return { pos: target.clone().add(new THREE.Vector3(0, d, d * 1e-3)), target };
+  }
+
+  // Map ↔ 3D: the camera glides between its orbit view and straight above what the map shows
+  // (no haze up there, like the map), and the page crossfades. A click skips the glide.
+  const NO_FOG = { near: 1e9, far: 2e9 };
+  function fogMix(e) {     // 0 = the usual haze … 1 = none
+    scene.fog.near = FOG.near * (NO_FOG.near / FOG.near) ** e;
+    scene.fog.far = FOG.far * (NO_FOG.far / FOG.far) ** e;
+  }
+  async function glide(to, ms, fog) {
+    flying = true; updateGlobeButton();
+    controls.enabled = false;
+    const from = { pos: camera.position.clone(), target: controls.target.clone() };
+    await animate(ms, (k) => { const e = easeInOut(k); moveCamera(from, to, e); fog(e); });
+    controls.enabled = !pov;
+    endFlight();
+  }
+  const canGlide = () => mode === 'local' && !flying && !pov;
+  let orbit = null;        // the orbit view to come back to after a trip to the map
+  /** 3D → map: glide up to straight above what the map shows. */
+  async function toTopDown(view) {
+    if (!canGlide()) return;
+    orbit = { pos: camera.position.clone(), target: controls.target.clone() };
+    await glide(topDown(view), 1200, (e) => fogMix(e));
+  }
+  /** Once the map shows: back to the orbit view and the usual haze, ready for next time. */
+  function restoreOrbit() {
+    if (!orbit || flying || pov) return;
+    camera.position.copy(orbit.pos); controls.target.copy(orbit.target); camera.lookAt(orbit.target);
+    fogMix(0);
+    orbit = null;
+  }
+  /** map → 3D: start straight above what the map shows, then glide down to the orbit view. */
+  async function fromTopDown(view) {
+    if (!canGlide()) return;
+    const back = { pos: camera.position.clone(), target: controls.target.clone() };
+    const start = topDown(view);
+    camera.position.copy(start.pos); controls.target.copy(start.target); camera.lookAt(start.target);
+    fogMix(1);
+    await glide(back, 1400, (e) => fogMix(1 - e));
+  }
+
+  /** Globe → dive to Gale Crater → through the haze → down to the terrain.
+   *  The first fly-in (with onLand) lands looking straight down and hands over to the 2D map. */
   async function flyIn() {
     if (!globeOK || mode !== 'globe' || flying) return;
+    const toMap = !!onLand && back === HOME && !pov;
     flying = true; updateGlobeButton();
     globe.controls.enabled = false;
     const d0 = globe.camera.position.length(), u0 = globe.camera.position.clone().normalize();
@@ -543,10 +649,18 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     setMode('local');
     haze.style.opacity = 1;
     controls.enabled = false;
+    const land = toMap ? topDown(onLand.landing()) : back;
+    if (toMap) Object.assign(scene.fog, { near: 1e9, far: 2e9 });   // no haze on the area seen from high up, like the map
     await animate(2800, (k) => {
-      moveCamera(HIGH, back, easeOut(k));
+      moveCamera(HIGH, land, easeOut(k));
       haze.style.opacity = Math.max(0, 1 - k / 0.4);
     });
+    if (toMap && !pov) {
+      await onLand.done();
+      // the 3D view is hidden now: next time it opens on the usual overview
+      camera.position.copy(HOME.pos); controls.target.copy(HOME.target);
+    }
+    if (toMap) Object.assign(scene.fog, pov ? POV_FOG : FOG);
     controls.enabled = !pov;
     endFlight();
   }
@@ -580,20 +694,21 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
     camera.position.copy(back.pos); controls.target.copy(back.target);   // not up in the haze
   }
 
-  /** First opening: start on the globe, Gale Crater in view. The user spins it, then clicks
+  /** First opening: start on the globe, Gale Crater in the centre. The user spins it, then clicks
    *  Gale (or "Fly to Gale Crater") to fly down to the walk. */
   let introDone = false;
+  let introPending = true;           // nothing is drawn until we know: globe first, or terrain if it can't load
   async function intro() {
     introDone = true;
-    if (!globe) return;
-    const t0 = performance.now();
-    try { await globe.ready; } catch (err) { console.warn('Mars globe not loaded:', err); return; }
+    const toTerrain = () => { introPending = false; setMode('local'); };
+    if (!globe) { toTerrain(); return; }
+    try { await globe.ready; } catch (err) { console.warn('Mars globe not loaded:', err); toTerrain(); return; }
     globeOK = true;
+    introPending = false;
     updateGlobeButton();
-    // not in the astronaut view, or if the globe came too late (the terrain is already showing)
-    if (pov || flying || performance.now() - t0 > 1500) return;
+    if (pov || flying) { setMode('local'); return; }   // the astronaut stands on the terrain
     setMode('globe');
-    globe.pose(latLonToVec(config.center.lat + 12, config.center.lon - 30), ALT_HIGH);
+    globe.pose(globe.siteDir, ALT_HIGH);   // Gale Crater in the middle of the screen
     globe.controls.enabled = true;
   }
 
@@ -648,6 +763,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
   function frame() {
     if (!running) return;
     requestAnimationFrame(frame);
+    if (introPending && !pov) return;   // first opening: wait for the globe, never flash the terrain
     tick();
     if (pov && mode !== 'local') setMode('local');
     if (mode === 'globe') {
@@ -664,20 +780,50 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       const pitch = Math.max(-1.45, Math.min(1.45, Math.atan2(delta.y, Math.hypot(delta.x, delta.z)) + lookPitch));
       delta.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
       camera.lookAt(delta.add(camera.position));
+      // tell the page which way the astronaut looks (x = east, z = south, so north is -z)
+      const az = (180 - yaw * 180 / Math.PI + 720) % 360, el = pitch * 180 / Math.PI;
+      if (!told || Math.abs(((az - told.az + 540) % 360) - 180) > 2 || Math.abs(el - told.el) > 2) {
+        told = { az, el };
+        onLook(az, el);
+      }
+      sizePovLabels();
       renderer.render(scene, camera);
       return;
     }
     if (flying) { renderer.render(scene, camera); return; }   // the flight moves the camera
+    if (astro.visible) animateWalker();
     if (follow && astro.visible) {      // glide the camera along with the astronaut
       delta.copy(astro.position).sub(controls.target).multiplyScalar(0.06);
       controls.target.add(delta);
       camera.position.add(delta);
+      if (pullBack) {
+        const d = camera.position.distanceTo(controls.target);
+        if (d >= FOLLOW_MIN_DIST * 0.98) pullBack = false;
+        else camera.position.sub(controls.target).multiplyScalar(1 + (FOLLOW_MIN_DIST / d - 1) * 0.06).add(controls.target);
+      }
     }
     controls.update();
     // never orbit into a hillside (Mount Sharp rises kilometres above the area to the south-east)
     const floor = groundAt(camera.position.x, camera.position.z) + 60 * S;
     if (camera.position.y < floor) camera.position.y = floor;
     renderer.render(scene, camera);
+  }
+  // the figure strides as far as it moved since the last frame (capped, so fast playback doesn't
+  // blur the legs), stands still while it doesn't move, and turns smoothly towards the path ahead
+  function animateWalker() {
+    const p = astro.position;
+    const moved = walkAnim.has ? Math.hypot(p.x - walkAnim.last.x, p.z - walkAnim.last.z) : 0;
+    walkAnim.last.copy(p);
+    walkAnim.has = true;
+    const walking = moved > 0.02 * M;
+    walkAnim.amount += ((walking ? 1 : 0) - walkAnim.amount) * 0.12;
+    if (walking) walkAnim.phase += Math.min(0.35, (moved / STRIDE) * Math.PI * 2);
+    else if (walkAnim.amount < 0.02) walkAnim.phase = 0;
+    astro.userData.walk(walkAnim.phase, walkAnim.amount);
+    if (faceGoal != null) {
+      const turn = ((faceGoal - astro.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      astro.rotation.y += turn * 0.15;
+    }
   }
   function resize() {
     const w = container.clientWidth, h = container.clientHeight;
@@ -697,6 +843,7 @@ export function createView3D(container, { grid, onPick, config = null, dataUrl =
       if (!introDone) intro();
     },
     stop() { running = false; },
+    toTopDown, fromTopDown, restoreOrbit,
     get mode() { return mode; },
   };
 }

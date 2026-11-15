@@ -34,15 +34,39 @@ export const state = {
   notice: '',        // one-off message (e.g. "point was moved") shown with the next status
   activeView: 'map', // 'map', '3d' or 'pov'
   view3d: null,      // the 3D view, once view3d.js has loaded
+  layoutMovedAt: 0,  // when the side panels last slid in or out (performance.now(), see setPanels)
 };
 
 // ---------------------------------------------------------------------------
 // Page helpers
 // ---------------------------------------------------------------------------
 export const $ = (id) => document.getElementById(id);
+/** The status line in the top bar. Errors also pop up over the view, where the user is looking.
+ *  An error clears itself after ERROR_MS (or when anything else sets the status), so an old
+ *  "maximum of 3 targets" doesn't sit there long after the user fixed it. */
+const ERROR_MS = 8000;
+let errorTimer = null;
 export const setStatus = (msg, isError = false) => {
   $('status').textContent = msg;
+  $('status').title = msg;   // the line is cut to one line on narrow screens; hover shows it all
   $('status').classList.toggle('error', isError);
+  clearTimeout(errorTimer);
+  if (isError) {
+    toast(msg, true);
+    errorTimer = setTimeout(() => setStatus(''), ERROR_MS);
+  }
+};
+/** Drop an error left in the status line (the plan changed, so it's out of date). Other messages stay. */
+export const clearError = () => { if ($('status').classList.contains('error')) setStatus(''); };
+let toastTimer = null;
+/** A short message over the map / 3D view that fades after a few seconds. */
+export const toast = (msg, isError = false) => {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.toggle('error', isError);
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 5000);
 };
 
 // ---------------------------------------------------------------------------
@@ -54,8 +78,14 @@ export const startHour = () => {
   const [hh, mm] = ($('inStart').value || '10:00').split(':').map(Number);
   return hh + mm / 60;
 };
-export const stopHours = () => (Number($('inStop').value) || 0) / 60;
-export const suitHours = () => Number($('inSuit').value) || 4;
+/** A number field's value kept inside the field's own min..max (empty → `fallback`), so a typo
+ *  like -60 min of work or a 0 h suit can't change the go/no-go call. */
+export const fieldNumber = (id, fallback) => {
+  const el = $(id), v = el.valueAsNumber;
+  return Number.isFinite(v) ? Math.min(Number(el.max), Math.max(Number(el.min), v)) : fallback;
+};
+export const stopHours = () => fieldNumber('inStop', 0) / 60;
+export const suitHours = () => fieldNumber('inSuit', 4);
 export const selectedWeather = () => state.weather.find((w) => String(w.sol) === $('inSol').value);
 /** Walking time plus the work time at every target. */
 export const totalHours = (route) => route.stats.walkHours + (state.points.length - 1) * stopHours();
@@ -72,5 +102,10 @@ export const fmtClock = (h) => {
   return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 };
 export const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`);
+/** The sand layer is tinted blue so it can't be mistaken for the orange slope colour (map CSS filter and 3D canvas filter). */
+export const SAND_FILTER = 'hue-rotate(178deg)';
+
+/** Elevation in whole metres, same style everywhere (plain minus, no thousands comma, never "-0"). */
+export const fmtElev = (m) => `${Math.round(m) + 0} m`;
 export const priorityName = (p) => (p === 100 ? 'Safest' : p === 0 ? 'Fastest' : `${p}% safety`);
 export const pointName = (i) => (i === 0 ? 'Start' : `Target ${i}`);

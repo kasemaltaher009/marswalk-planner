@@ -1,5 +1,5 @@
 /* The start + target points the astronaut places on the map. */
-import { state, $, setStatus, MAX_TARGETS, SNAP_RADIUS_CELLS, PHOTO_RADIUS_M, pointName } from './state.js';
+import { state, $, setStatus, MAX_TARGETS, SNAP_RADIUS_CELLS, PHOTO_RADIUS_M, pointName, fmtElev } from './state.js';
 import { nearestWalkable } from './routing/grid.js';
 import { map, latlngOf, cellAtLatLng } from './map.js';
 import { nearestStop } from './curiosity.js';
@@ -7,13 +7,26 @@ import { photoPopup } from './photos.js';
 import { planRoute } from './route.js';
 import { sync3DMarkers } from './view3dBridge.js';
 
+/** Clicks on the ground this soon after the side panels slid in or out are ignored: the view and its
+ *  buttons just moved, so a click meant for a button (e.g. right after End walk) would otherwise land
+ *  on the ground and quietly add a waypoint. */
+const SETTLE_MS = 500;
+
 export function addPoint(cellIdx) {
+  if (performance.now() - state.layoutMovedAt < SETTLE_MS) return;
   if (state.points.length >= 1 + MAX_TARGETS) {
     setStatus(`That's the maximum of ${MAX_TARGETS} targets. Drag a marker to move it, or undo the last one.`, true);
     return;
   }
   const idx = snapToWalkable(cellIdx);
   if (idx === null) return;
+  cleared = [];   // a new point replaces the chance to bring the cleared ones back
+  placePoint(idx);
+  refreshPointList();
+  planRoute();
+}
+
+function placePoint(idx) {
   const marker = L.marker(latlngOf(idx), { draggable: true, autoPan: true });
   const pt = { idx, marker };
   state.points.push(pt);
@@ -27,13 +40,11 @@ export function addPoint(cellIdx) {
   });
   marker.bindPopup(() => pointPopup(pt), { maxWidth: 300 });
   marker.addTo(map);
-  refreshPointList();
-  planRoute();
 }
 
 /** Clicked a cliff? Move to the nearest walkable cell (within 100 m). */
 function snapToWalkable(idx) {
-  if (idx < 0) { setStatus('Click inside the dashed gold square, the planning area.', true); return null; }
+  if (idx < 0) { setStatus('Click inside the planning area (the photo).', true); return null; }
   const snapped = nearestWalkable(state.grid, idx, SNAP_RADIUS_CELLS);
   if (snapped === null) {
     setStatus('Too steep there and no walkable ground within 100 m. Pick another spot.', true);
@@ -46,7 +57,7 @@ function snapToWalkable(idx) {
 function pointPopup(pt) {
   const { grid } = state;
   const i = state.points.indexOf(pt);
-  const info = `<p>Elevation ${grid.elev[pt.idx].toFixed(0)} m, local slope ${grid.slope[pt.idx].toFixed(0)}°</p>`;
+  const info = `<p>Elevation ${fmtElev(grid.elev[pt.idx])}, local slope ${grid.slope[pt.idx].toFixed(0)}°</p>`;
   const near = nearestStop(latlngOf(pt.idx));
   let el;
   if (near) {
@@ -72,7 +83,21 @@ export function removePoint(pt) {
   planRoute();
 }
 
+/** Cell indexes of the points "Clear all" removed, so Undo can bring them back. */
+let cleared = [];
+
+/** Undo: take back the last point, or (right after Clear all) bring all cleared points back. */
+export function undoPoint() {
+  if (state.points.length) { removePoint(state.points[state.points.length - 1]); return; }
+  if (!cleared.length) return;
+  cleared.forEach(placePoint);
+  cleared = [];
+  refreshPointList();
+  planRoute();
+}
+
 export function clearPoints() {
+  cleared = state.points.map((p) => p.idx);
   state.points.forEach((p) => map.removeLayer(p.marker));
   state.points = [];
   refreshPointList();
@@ -88,13 +113,27 @@ export function refreshPointList() {
     }));
   });
   $('pointList').innerHTML = points.map((pt, i) =>
-    `<li><span class="tag ${i === 0 ? 'start' : 'target'}">${i === 0 ? 'S' : i}</span>
-      ${pointName(i)}<span class="sub">${grid.elev[pt.idx].toFixed(0)} m</span></li>`).join('');
-  $('clickHint').textContent = points.length === 0
-    ? 'Click the map to place your start, the airlock or rover.'
-    : points.length <= MAX_TARGETS
-      ? `Click to add science target ${points.length}. Drag markers to adjust them, or click one to see Curiosity's photo from there.`
-      : 'All three targets are placed. Drag markers to adjust them, or click one to see its photo.';
-  $('btnUndo').disabled = $('btnClear').disabled = points.length === 0;
+    `<li title="Elevation ${fmtElev(grid.elev[pt.idx])}"><span class="tag ${i === 0 ? 'start' : 'target'}">${i === 0 ? 'S' : i}</span>
+      ${pointName(i)}
+      <button type="button" class="rm" data-i="${i}" aria-label="Remove ${pointName(i).toLowerCase()}" title="Remove">×</button></li>`).join('');
+  $('wpbar').dataset.count = points.length;   // CSS shows the list and route options once there are points
+  refreshHint();
+  $('btnClear').disabled = points.length === 0;
+  $('btnUndo').disabled = points.length === 0 && cleared.length === 0;
   sync3DMarkers();
+}
+
+/** The "what to do next" line above the waypoint list. */
+export function refreshHint() {
+  const n = state.points.length;
+  const onGlobe = state.activeView !== 'map' && document.querySelector('.stage').dataset.globe === 'true';
+  $('clickHint').textContent = onGlobe && n === 0
+    ? 'First click Gale Crater on the globe to fly down to the walking area.'
+    : state.activeView === 'pov'
+      ? 'Undo, × or Clear all edit the points here. Switch to Map or 3D terrain to place new ones.'
+    : n === 0
+      ? "Click the ground to place your start. The end of Curiosity's track is a good spot."
+      : n <= MAX_TARGETS
+        ? `Click to add science target ${n}, or drag a marker to move it.`
+        : 'All targets placed. Drag a marker to move it.';
 }

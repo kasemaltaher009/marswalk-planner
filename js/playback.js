@@ -1,18 +1,20 @@
 /* Playback: the astronaut walks the route, with a helmet display (HUD) and a picture of the area. */
 import {
   state, $, RESERVE_H, PLAY_SECONDS_PER_HOUR, PHOTO_RADIUS_M,
-  playSpeed, startHour, stopHours, suitHours, selectedWeather, fmtH, fmtClock, fmtDist,
+  playSpeed, startHour, stopHours, suitHours, selectedWeather, fmtH, fmtClock, fmtDist, fmtElev, REDUCED_MOTION,
 } from './state.js';
 import { rcOf } from './routing/grid.js';
 import { map, astroMarker, walkedLine, latlngOf, latlngOfRC, cellAtLatLng } from './map.js';
 import { elevChart, tempChart } from './charts.js';
 import { airTempAt } from './weather.js';
 import { nearestStop } from './curiosity.js';
-import { curiosityPhotos, photoViewer, orbitalCrop, ORBITAL_VIEW_M } from './photos.js';
+import { curiosityPhotos, photoViewer, orbitalCrop, ORBITAL_VIEW_M, photoFacing, turnTo, compassText } from './photos.js';
 import { setPhotoPin } from './view3dBridge.js';
 
 // t = hours since stepping out; tl = timeline of the route being played (see buildTimeline)
-export const play = { t: 0, playing: false, last: 0, tl: null, lastChart: 0, photoFor: null, photoJob: 0 };
+// holds = view switches still loading (the walk clock waits, see holdWalk)
+// look = which way the astronaut view faces; facing = the "photo of where you look" being shown
+export const play = { t: 0, playing: false, last: 0, tl: null, lastChart: 0, photoFor: null, photoJob: 0, look: null, facing: null, holds: 0 };
 
 /** When the astronaut reaches and leaves every point of the path (hours from stepping out).
  *  stopH = hours of work at each target. */
@@ -60,16 +62,47 @@ export function startPlayback() {
  *  corner keeps the numbers that matter. "End walk" (or any change to the plan) brings them back.
  *  The "Hide panels" button shows or hides them (side panels and top bar) at any time. */
 function setWalkMode(on) {
+  walking = on;
+  povSeen = false;
   $('btnEnd').hidden = !on;
-  setPanels(!on);
+  // body.walking: the verdict card goes too (the helmet display is up); with only the panels hidden
+  // it stays as a compact verdict line (style.css)
+  setPanels(!on, { alsoChange: () => document.body.classList.toggle('walking', on) });
+  refreshPovNudge();
+}
+let walking = false;
+let povSeen = false;   // the astronaut view was visited during this walk: stop nudging
+
+/** While a walk is on and you're watching from above, the Astronaut view button pulses
+ *  ("see the walk on foot") to invite you in. Called again whenever the view changes. */
+export function refreshPovNudge() {
+  if (state.activeView === 'pov') povSeen = true;
+  const finished = play.tl && play.t >= play.tl.total;
+  $('btnPOV').classList.toggle('nudge', walking && !povSeen && !finished && state.activeView !== 'pov');
 }
 
-export function setPanels(show) {
-  if (document.body.classList.contains('panels-hidden') === !show) return;
-  document.body.classList.toggle('panels-hidden', !show);
-  $('btnPanels').setAttribute('aria-expanded', show);
-  $('btnPanelsLabel').textContent = show ? 'Hide panels' : 'Show panels';
-  map?.invalidateSize();          // the 3D view notices the new size by itself
+/** Show or hide the side panels (and the verdict card). `animate: false` switches at once.
+ *  `alsoChange` runs inside the same animation, so whatever it shows or hides slides with the panels. */
+export function setPanels(show, { animate = true, alsoChange = () => {} } = {}) {
+  if (document.body.classList.contains('panels-hidden') === !show) { alsoChange(); return; }
+  const apply = () => {
+    state.layoutMovedAt = performance.now();
+    alsoChange();
+    document.body.classList.toggle('panels-hidden', !show);
+    $('btnPanels').setAttribute('aria-expanded', show);
+    $('btnPanelsLabel').textContent = $('btnPanels').title = show ? 'Hide panels' : 'Show panels';
+    map?.invalidateSize();          // the 3D view notices the new size by itself
+  };
+  // The browser animates between the two layouts: the side panels and top bar slide away
+  // (or back) while the view grows (or shrinks). The pieces are named in style.css.
+  if (!animate || REDUCED_MOTION || !document.startViewTransition) { apply(); return; }
+  // .vt-panels turns off the verdict card's backdrop blur for the slide: the browser would bake the
+  // blurred map behind it into the card's picture, a blurry patch sliding over the moving map
+  const root = document.documentElement;
+  root.classList.add('vt-panels');
+  const vt = document.startViewTransition(apply);
+  vt.ready.catch(() => {});   // skipped when toggled again mid-slide: fine, the new one takes over
+  vt.finished.finally(() => { root.classList.remove('vt-panels'); state.layoutMovedAt = performance.now(); });
 }
 
 /** Pause (and show a picture of where the astronaut stopped).
@@ -84,9 +117,10 @@ export function stopPlayback(reset = false, replace = true) {
     if (wasPlaying && play.tl) renderPlayback();
     return;
   }
-  play.t = 0; play.tl = null; play.photoFor = null; play.photoJob++;
+  play.t = 0; play.tl = null; play.photoFor = null; play.photoJob++; play.facing = null;
   setWalkMode(false);
   $('hud').hidden = true;
+  $('work').hidden = true;
   $('hPhoto').hidden = true;
   setPhotoPin(null);
   $('scrub').value = 0;
@@ -94,6 +128,7 @@ export function stopPlayback(reset = false, replace = true) {
   if (elevChart) { elevChart.$cursor = null; elevChart.update('none'); }
   if (tempChart) { tempChart.$cursor = null; tempChart.update('none'); }
   state.view3d?.setAstronaut(null);
+  setPlayButton(false);   // back at the start: "Play walk", not "Resume"
   if (replace && state.activeView === 'pov' && state.plan) placeAstronaut();
 }
 
@@ -102,6 +137,15 @@ export function placeAstronaut() {
   if (!state.plan) return;
   ensureTimeline();
   $('hud').hidden = false;
+  renderPlayback();
+}
+
+/** Skip the rest of the work at the current target: on to the next leg (playing or paused, as it was). */
+export function skipWork() {
+  if (!play.tl) return;
+  const { k, stop } = stateAt(play.tl, play.t);
+  if (stop === null) return;
+  play.t = play.tl.depart[k] + 1e-9;   // just past the end of the work
   renderPlayback();
 }
 
@@ -120,12 +164,21 @@ function setPlayButton(playing) {
   $('playIcon').setAttribute('d', playing ? 'M4 2.5h3v11H4zM9 2.5h3v11H9z' : 'M4 2.5v11l9-5.5z');
 }
 
+/** Hold the walk clock until `promise` settles (e.g. the astronaut view is still being built),
+ *  so the astronaut doesn't walk on unseen. The walk carries on from where it was. */
+export function holdWalk(promise) {
+  play.holds++;
+  promise.catch(() => {}).finally(() => { play.holds--; play.last = performance.now(); });
+}
+// A frame can take long while the browser builds a view; never let one frame jump the walk ahead.
+const MAX_FRAME_S = 0.1;
+
 function tick(now) {
   if (!play.playing) return;
-  const dt = (now - play.last) / 1000;
+  const dt = play.holds ? 0 : Math.min(MAX_FRAME_S, (now - play.last) / 1000);
   play.last = now;
   play.t = Math.min(play.tl.total, play.t + dt / PLAY_SECONDS_PER_HOUR * playSpeed());
-  if (play.t >= play.tl.total) play.playing = false;   // finished: render once more as stopped
+  if (play.t >= play.tl.total) { play.playing = false; refreshPovNudge(); }   // finished: render once more as stopped
   renderPlayback();
   if (!play.playing) { setPlayButton(false); return; }
   requestAnimationFrame(tick);
@@ -179,15 +232,24 @@ export function renderPlayback() {
   $('hSuitBar').className = left < 0 ? 'nogo' : left < RESERVE_H + 0.25 ? 'caution' : '';
   $('hSuit').textContent = left >= 0 ? `${fmtH(left)} of suit time left` : `${fmtH(-left)} over the suit limit`;
   $('hDist').textContent = fmtDist(walked);
-  $('hElev').textContent = `${elev.toFixed(0)} m`;
-  const g = Math.atan(stats.grade(Math.max(1, k))) * 180 / Math.PI;
-  $('hGrade').textContent = stop !== null || done ? '0°' : `${g >= 0 ? '+' : ''}${g.toFixed(0)}°`;
+  $('hElev').textContent = fmtElev(elev);
+  const g = Math.round(Math.atan(stats.grade(Math.max(1, k))) * 180 / Math.PI);
+  $('hGrade').textContent = stop !== null || done ? '0°' : `${g > 0 ? '+' : ''}${g + 0}°`;
   const wx = selectedWeather();
   $('hAir').textContent = wx ? `${airTempAt(wx, clock).toFixed(0)} °C` : 'no data';
   $('hDose').textContent = `${(config.radiation_mSv_per_day * play.t / config.sol_hours).toFixed(3)} mSv`;
   $('hElapsed').textContent = fmtH(play.t);
+  // working at a target: how much work time is left, with a Skip button
+  $('work').hidden = stop === null || done;
+  if (stop !== null && !done) {
+    const workLeft = tl.depart[k] - play.t, workH = tl.depart[k] - tl.arrive[k];
+    $('workTitle').textContent = `Working at target ${stop}`;
+    $('workLeft').textContent = `${fmtH(Math.max(workLeft, 1 / 120))} of work left`;   // never "0 min" while still working
+    $('workBar').style.width = `${100 * (1 - workLeft / (workH || 1))}%`;
+  }
   // Picture of the area: while working at a target, or whenever playback is stopped
-  showAreaPicture(stop !== null ? `t${stop}` : !play.playing ? `p${path[k]}` : null, r, c);
+  const spot = stop !== null ? `t${stop}` : !play.playing ? `p${path[k]}` : null;
+  showAreaPicture(spot && `${spot}:${state.activeView === 'pov' ? 'look' : 'all'}`, r, c);
 
   // progress bar + chart cursors (charts at ~10 fps)
   $('scrub').value = Math.round(1000 * play.t / tl.total);
@@ -207,6 +269,7 @@ function showAreaPicture(key, r, c) {
   play.photoFor = key;
   const box = $('hPhoto');
   const job = ++play.photoJob;
+  play.facing = null;
   setPhotoPin(null);
   if (key === null) { box.hidden = true; return; }
   const near = nearestStop(latlngOfRC(r, c));
@@ -217,12 +280,22 @@ function showAreaPicture(key, r, c) {
     if (job !== play.photoJob) return;          // the astronaut moved on meanwhile
     box.innerHTML = '';
     let caption;
+    // astronaut view: the photo Curiosity took from its stop in the direction you're looking
+    if (key.endsWith(':look') && photos.some((ph) => ph.look && ph.site === near.p.site && ph.drive === near.p.drive)) {
+      box.innerHTML = `<div class="viewer"><a target="_blank" rel="noopener" title="Open full size"><img alt=""></a>` +
+        `<p class="facing-none" hidden></p><span class="count"></span></div><figcaption></figcaption>`;
+      play.facing = { near, photos, shown: null };
+      updateFacing();
+      box.hidden = false;
+      setPhotoPin(cellAtLatLng(near.ll));
+      return;
+    }
     if (photos.length) {
       const cap = document.createElement('figcaption');
       box.append(photoViewer(photos, (i) => {
         // photos[i].title already names the sol, e.g. "Sol 4996: Left Navigation Camera"
         const pin = state.activeView === 'map' ? '' : ', at the purple camera pin';
-        cap.textContent = `${photos[i].title}. Curiosity took this ${Math.round(near.d)} m from here${pin}.`;
+        cap.textContent = cap.title = `${photos[i].title}. Curiosity took this ${Math.round(near.d)} m from here${pin}.`;
       }));
       box.append(cap);
       box.hidden = false;
@@ -234,8 +307,51 @@ function showAreaPicture(key, r, c) {
       caption = `This spot from orbit (HiRISE, ${ORBITAL_VIEW_M} m across). Curiosity never stopped within ${PHOTO_RADIUS_M} m of here.`;
     } else { box.hidden = true; return; }
     const cap = document.createElement('figcaption');
-    cap.textContent = caption;
+    cap.textContent = cap.title = caption;
     box.append(cap);
     box.hidden = false;
   });
+}
+
+/** Photos further than this to the side of where you look count as "not this way". */
+const FACING_MAX_OFF = 35;
+
+/** The astronaut view turned (compass degrees, degrees above the horizon). */
+export function lookedAt(az, el) {
+  play.look = { az, el };
+  if (play.facing) updateFacing();
+}
+
+/** Show the photo from Curiosity's stop that looks the way the astronaut looks. */
+function updateFacing() {
+  const f = play.facing, box = $('hPhoto');
+  const { az, el } = play.look ?? { az: 0, el: 0 };
+  const best = photoFacing(f.photos, f.near.p, az, el, f.shown);
+  const a = box.querySelector('a'), img = box.querySelector('img'), none = box.querySelector('.facing-none');
+  const badge = box.querySelector('.count'), cap = box.querySelector('figcaption');
+  const looking = compassText(az);
+  const pin = `from the purple camera pin, ${Math.round(f.near.d)} m from here`;
+  if (best.off > FACING_MAX_OFF) {
+    f.shown = null;
+    a.hidden = true; none.hidden = false;
+    const turn = turnTo(az, best.photo.look.az);
+    none.textContent = `No Curiosity photo this way. Turn ${Math.round(Math.abs(turn))}° ${turn > 0 ? 'right' : 'left'} for one.`;
+    badge.textContent = `Looking ${looking}`;
+    cap.textContent = cap.title = `Curiosity photographed this stop on sol ${f.near.p.sol}, ${pin}.`;
+    return;
+  }
+  a.hidden = false; none.hidden = true;
+  if (best.photo === f.shown) return;
+  f.shown = best.photo;
+  const ph = best.photo, dir = compassText(ph.look.az);
+  a.href = img.src = ph.url;
+  img.alt = `${ph.title}, looking ${dir}`;
+  badge.textContent = `Looking ${dir}`;
+  // ph.title already names the sol, e.g. "Sol 4996: Left Navigation Camera"
+  cap.textContent = cap.title = `What you're facing: ${ph.title}, looking ${dir}, taken ${pin}.`;
+}
+
+/** Redraw the picture after the view changed (each view shows the photos its own way). */
+export function refreshAreaPicture() {
+  if (play.tl && !$('hud').hidden) renderPlayback();
 }
