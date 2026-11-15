@@ -23,12 +23,14 @@ const STEPS = [
   },
   {
     title: 'Place your start',
+    clearCentre: true,
     text: "Click the ground where the walk begins, the airlock or rover. The end of Curiosity's track is a good spot. Too steep there? The point moves to the nearest safe ground.",
     done: () => state.points.length >= 1,
     needs: onTerrain,
   },
   {
     title: 'Add a science target',
+    clearCentre: true,
     text: 'Click somewhere you want to study. The planner finds the safest path around steep slopes, cliffs and sand. You can add up to three targets and drag any marker to move it.',
     done: () => state.points.length >= 2 && !!state.plan,
     needs: onTerrain,
@@ -36,18 +38,18 @@ const STEPS = [
   {
     target: '#summary',
     title: 'Go or no-go',
-    text: 'Each system (suit time, daylight, cold, radiation, terrain) gives its call. All green means GO; anything orange or red tells you what to change.',
+    text: 'Each system (suit time, terrain, thermal, daylight, radiation) gives its call. Green means go, orange means go with caution, red means no-go; the orange and red ones say what to change.',
   },
   {
     target: '#statsBox',
     title: 'The walk in numbers',
-    text: 'Distance, time outside, climb and radiation dose. Each coloured leg of the route is listed here in order. Click Go to fold this card.',
+    text: 'Distance, time outside, climb and radiation dose. Each coloured leg of the route is listed here in order. Click the verdict at the top to fold this card.',
   },
   {
     target: '#priority',
     ring: (el) => el.closest('section'),
     title: 'Fastest or safest?',
-    text: 'Drag this slider to trade safety for speed. The dashed gold line on the map is the route from the other end of the slider.',
+    text: 'Drag this slider to trade safety for speed. The gold line (dashed on the map) is the route from the other end of the slider, for comparison.',
   },
   {
     target: '.toolbar',
@@ -62,18 +64,20 @@ const STEPS = [
   {
     target: '#btnPlay',
     title: 'Walk it',
-    text: 'Press Play walk. The helmet display shows the clock, suit time left, air temperature and what Curiosity saw nearby.',
+    text: 'Press Play walk. The helmet display shows the clock, suit time left and air temperature. While you work at a target (or pause), it shows a photo of the spot: Curiosity\'s if it stopped nearby, else the view from orbit.',
     done: () => play.playing,
   },
   {
     target: '#btnPOV',
     title: 'Step into the astronaut view',
+    clearCentre: true,
     text: 'You are watching from above. Click Astronaut view to walk the route at eye height and see the ground the way you would in your suit.',
     done: () => state.activeView === 'pov',
   },
   {
     title: 'You\'re walking on Mars',
-    text: 'Drag to look around; double-click to face the path again. The helmet display shows Curiosity\'s photo of where you are looking. "End walk" brings the panels back, and the Tour button at the top replays this tour.',
+    clearCentre: true,
+    text: 'Drag to look around; double-click to face the path again. When you stop at a target where Curiosity took photos, the helmet display shows its photo of the way you are looking. "End walk" brings the panels back, and the Tour button at the top replays this tour.',
     last: true,
   },
 ];
@@ -168,37 +172,58 @@ function loop() {
   raf = requestAnimationFrame(loop);
 }
 
+// What the card should never cover: the controls at the bottom centre (waypoints with Undo / Clear all,
+// the player with its speed and Follow, the view switch, the helmet display), the layer buttons and
+// the verdict card. Steps with `clearCentre` also keep the middle of the view free: that's where you
+// click the start and targets (by Curiosity's track) and where the walk is seen.
+const KEEP_CLEAR = ['#wpbar', '#work', '#player', '.viewdock', '#hud', '.toolbar > *', '#summary'];
+
 function place() {
   const s = STEPS[step];
   const el = ringOf(s);
   const vw = innerWidth, vh = innerHeight, gap = 14, pad = 12;
   const cw = card.offsetWidth, ch = card.offsetHeight;
-  let x, y;
-  if (visible(el)) {
-    const r = el.getBoundingClientRect();
-    ring.hidden = false;
+  const target = visible(el) ? el.getBoundingClientRect() : null;
+  ring.hidden = !target;
+  const spots = [];
+  if (target) {
+    const r = target;
     Object.assign(ring.style, { left: `${r.left - 4}px`, top: `${r.top - 4}px`, width: `${r.width + 8}px`, height: `${r.height + 8}px` });
-    // beside the target if there's room (right, left, below, above), else over the view's bottom
-    const spots = [
-      [r.right + gap, r.top + r.height / 2 - ch / 2, vw - r.right - gap >= cw + pad],
-      [r.left - gap - cw, r.top + r.height / 2 - ch / 2, r.left - gap >= cw + pad],
-      [r.left + r.width / 2 - cw / 2, r.bottom + gap, vh - r.bottom - gap >= ch + pad],
-      [r.left + r.width / 2 - cw / 2, r.top - gap - ch, r.top - gap >= ch + pad],
-    ];
-    const fit = spots.find((p) => p[2]);
-    if (fit) [x, y] = fit;
-  } else {
-    ring.hidden = true;
+    // beside the target: right, left, above, below
+    spots.push([r.right + gap, r.top + r.height / 2 - ch / 2], [r.left - gap - cw, r.top + r.height / 2 - ch / 2],
+      [r.left + r.width / 2 - cw / 2, r.top - gap - ch], [r.left + r.width / 2 - cw / 2, r.bottom + gap]);
   }
-  if (x === undefined) {
-    // no target (or no room): just above the view buttons (and the player and helmet display during
-    // a walk), so the middle of the view, where the walk starts by Curiosity, stays free to click
-    const st = document.querySelector('.stage').getBoundingClientRect();
-    const bottom = Math.min(...['.viewdock', '#player', '#hud', '#wpbar'].map((q) => document.querySelector(q))
-      .filter(visible).map((e) => e.getBoundingClientRect().top));
-    x = st.left + st.width / 2 - cw / 2;
-    y = bottom - gap - ch;
+  // then the corners of the view: top left (under the layer buttons), top right, bottom left, bottom right
+  const st = document.querySelector('.stage').getBoundingClientRect();
+  const tools = [...document.querySelectorAll('.toolbar > *')].filter(visible).map((e) => e.getBoundingClientRect().bottom);
+  const top = Math.max(st.top + pad, ...tools.map((b) => b + 10));
+  const bottom = Math.min(vh, st.bottom) - pad - ch;
+  spots.push([st.left + pad, top], [st.right - pad - cw, top], [st.left + pad, bottom], [st.right - pad - cw, bottom]);
+
+  // The first spot that covers none of the keep-clear boxes wins, else the one covering least.
+  // (a box holding the target, like the verdict card around "the walk in numbers", counts as the target itself)
+  const zones = KEEP_CLEAR.flatMap((q) => [...document.querySelectorAll(q)])
+    .filter((e) => visible(e) && !(target && e.contains(el))).map((e) => e.getBoundingClientRect());
+  // covering the very thing the step talks about counts 10× (on a phone something has to be covered)
+  if (target) zones.push(Object.assign(target.toJSON(), { weight: 10 }));
+  if (s.clearCentre) {
+    zones.push({ left: st.left + st.width * 0.3, right: st.right - st.width * 0.3, top: st.top + st.height * 0.3, bottom: st.bottom - st.height * 0.3 });
+    const astro = document.querySelector('.astro');   // the walker on the map, wherever it is
+    if (visible(astro)) {
+      const a = astro.getBoundingClientRect();
+      zones.push({ left: a.left - 60, right: a.right + 60, top: a.top - 60, bottom: a.bottom + 60 });
+    }
   }
-  card.style.left = `${Math.round(Math.min(Math.max(x, pad), vw - cw - pad))}px`;
-  card.style.top = `${Math.round(Math.min(Math.max(y, pad), vh - ch - pad))}px`;
+  const covered = ([x, y]) => zones.reduce((sum, z) => sum + (z.weight ?? 1) *
+    Math.max(0, Math.min(x + cw, z.right) - Math.max(x, z.left)) * Math.max(0, Math.min(y + ch, z.bottom) - Math.max(y, z.top)), 0);
+  // a spot partly off screen is pushed back on (so the card stays near its target when it can)
+  const onScreen = ([x, y]) => [Math.min(Math.max(x, pad), vw - cw - pad), Math.min(Math.max(y, pad), vh - ch - pad)];
+  let best = null, least = Infinity;
+  for (const p of spots.map(onScreen)) {
+    const c = covered(p);
+    if (c < least) { best = p; least = c; }
+    if (!c) break;
+  }
+  card.style.left = `${Math.round(best[0])}px`;
+  card.style.top = `${Math.round(best[1])}px`;
 }

@@ -7,7 +7,13 @@ import { photoPopup } from './photos.js';
 import { planRoute } from './route.js';
 import { sync3DMarkers } from './view3dBridge.js';
 
+/** Clicks on the ground this soon after the side panels slid in or out are ignored: the view and its
+ *  buttons just moved, so a click meant for a button (e.g. right after End walk) would otherwise land
+ *  on the ground and quietly add a waypoint. */
+const SETTLE_MS = 500;
+
 export function addPoint(cellIdx) {
+  if (performance.now() - state.layoutMovedAt < SETTLE_MS) return;
   if (state.points.length >= 1 + MAX_TARGETS) {
     setStatus(`That's the maximum of ${MAX_TARGETS} targets. Drag a marker to move it, or undo the last one.`, true);
     return;

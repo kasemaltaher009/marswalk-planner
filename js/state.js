@@ -34,18 +34,30 @@ export const state = {
   notice: '',        // one-off message (e.g. "point was moved") shown with the next status
   activeView: 'map', // 'map', '3d' or 'pov'
   view3d: null,      // the 3D view, once view3d.js has loaded
+  layoutMovedAt: 0,  // when the side panels last slid in or out (performance.now(), see setPanels)
 };
 
 // ---------------------------------------------------------------------------
 // Page helpers
 // ---------------------------------------------------------------------------
 export const $ = (id) => document.getElementById(id);
-/** The status line in the top bar. Errors also pop up over the view, where the user is looking. */
+/** The status line in the top bar. Errors also pop up over the view, where the user is looking.
+ *  An error clears itself after ERROR_MS (or when anything else sets the status), so an old
+ *  "maximum of 3 targets" doesn't sit there long after the user fixed it. */
+const ERROR_MS = 8000;
+let errorTimer = null;
 export const setStatus = (msg, isError = false) => {
   $('status').textContent = msg;
+  $('status').title = msg;   // the line is cut to one line on narrow screens; hover shows it all
   $('status').classList.toggle('error', isError);
-  if (isError) toast(msg, true);
+  clearTimeout(errorTimer);
+  if (isError) {
+    toast(msg, true);
+    errorTimer = setTimeout(() => setStatus(''), ERROR_MS);
+  }
 };
+/** Drop an error left in the status line (the plan changed, so it's out of date). Other messages stay. */
+export const clearError = () => { if ($('status').classList.contains('error')) setStatus(''); };
 let toastTimer = null;
 /** A short message over the map / 3D view that fades after a few seconds. */
 export const toast = (msg, isError = false) => {

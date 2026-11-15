@@ -161,6 +161,12 @@ function setupControls() {
     hudOpen(true);
   }, true);
   $('btnPanels').addEventListener('click', () => setPanels(document.body.classList.contains('panels-hidden')));
+  // panels hidden, the verdict is a compact line: clicking it brings the panels (and the full card) back
+  $('verdictBox').addEventListener('click', (e) => {
+    if (!document.body.classList.contains('panels-hidden')) return;
+    e.preventDefault();
+    setPanels(true);
+  });
   const showSpeed = () => {
     const s = playSpeed();
     $('speedOut').textContent = `${s}×`;

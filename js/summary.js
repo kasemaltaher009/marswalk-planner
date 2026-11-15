@@ -74,7 +74,9 @@ export function renderSummary() {
   const nogo = items.filter((i) => i[0] === 'nogo').length;
   const cautions = items.filter((i) => i[0] === 'caution').length;
   box.classList.add(nogo ? 'nogo' : cautions ? 'caution' : 'go');
-  $('verdict').textContent = nogo ? 'No-go' : 'Go';
+  // orange card = go, but some system needs care: say so, not just "Go" (small second line, so it fits
+  // the header next to the folded "distance · time" line too)
+  $('verdict').innerHTML = nogo ? 'No-go' : cautions ? 'Go<small>with caution</small>' : 'Go';
   const callWord = { go: 'Go', caution: 'Caution', nogo: 'No-go' };
   $('poll').innerHTML = items.map(([lvl, sys, detail]) =>
     `<li class="${lvl}"><span class="sys">${sys}</span><span class="call">${callWord[lvl]}</span>` +

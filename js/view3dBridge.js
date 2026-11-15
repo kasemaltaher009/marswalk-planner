@@ -4,7 +4,7 @@
 import { state, $, setStatus, DATA, REDUCED_MOTION } from './state.js';
 import { map, overlayOn, setOverlay } from './map.js';
 import { addPoint, refreshHint } from './points.js';
-import { placeAstronaut, lookedAt, refreshAreaPicture, refreshPovNudge, setPanels } from './playback.js';
+import { placeAstronaut, lookedAt, refreshAreaPicture, refreshPovNudge, setPanels, holdWalk } from './playback.js';
 
 let view3dLoading = null;
 let introEnding = false;   // the start-up globe's panels / view switch are on their way in (showView)
@@ -168,10 +168,16 @@ export async function switchView(name) {
   if (switching || name === from) return;
   if (name === 'pov' && !state.plan) return;
   // before the 3D view exists (or with reduced motion) there's nothing to glide or blink
-  if (!state.view3d || REDUCED_MOTION) { showView(name); return; }
+  if (!state.view3d || REDUCED_MOTION) {
+    showView(name);
+    if (name !== 'map') holdWalk(view3dLoading.then(nextFrame));   // a walk waits until the 3D view is up
+    return;
+  }
   const glide = (from === 'map' && name === '3d') || (from === '3d' && name === 'map');
   switching = true;
   markDock(name);   // the highlight slides over at once; the view follows
+  let done;
+  holdWalk(new Promise((r) => { done = r; }));   // a walk waits until the new view is up
   try {
     if (!glide) {
       await blink(name);
@@ -182,7 +188,7 @@ export async function switchView(name) {
     } else {
       await mapTo3D();
     }
-  } finally { switching = false; }
+  } finally { switching = false; done(); }
 }
 
 /** Into or out of the astronaut view: a short dark "visor blink" hides the jump,

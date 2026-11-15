@@ -12,8 +12,9 @@ import { curiosityPhotos, photoViewer, orbitalCrop, ORBITAL_VIEW_M, photoFacing,
 import { setPhotoPin } from './view3dBridge.js';
 
 // t = hours since stepping out; tl = timeline of the route being played (see buildTimeline)
+// holds = view switches still loading (the walk clock waits, see holdWalk)
 // look = which way the astronaut view faces; facing = the "photo of where you look" being shown
-export const play = { t: 0, playing: false, last: 0, tl: null, lastChart: 0, photoFor: null, photoJob: 0, look: null, facing: null };
+export const play = { t: 0, playing: false, last: 0, tl: null, lastChart: 0, photoFor: null, photoJob: 0, look: null, facing: null, holds: 0 };
 
 /** When the astronaut reaches and leaves every point of the path (hours from stepping out).
  *  stopH = hours of work at each target. */
@@ -63,7 +64,9 @@ export function startPlayback() {
 function setWalkMode(on) {
   walking = on;
   $('btnEnd').hidden = !on;
-  setPanels(!on);
+  // body.walking: the verdict card goes too (the helmet display is up); with only the panels hidden
+  // it stays as a compact verdict line (style.css)
+  setPanels(!on, { alsoChange: () => document.body.classList.toggle('walking', on) });
   refreshPovNudge();
 }
 let walking = false;
@@ -79,6 +82,7 @@ export function refreshPovNudge() {
 export function setPanels(show, { animate = true, alsoChange = () => {} } = {}) {
   if (document.body.classList.contains('panels-hidden') === !show) { alsoChange(); return; }
   const apply = () => {
+    state.layoutMovedAt = performance.now();
     alsoChange();
     document.body.classList.toggle('panels-hidden', !show);
     $('btnPanels').setAttribute('aria-expanded', show);
@@ -94,7 +98,7 @@ export function setPanels(show, { animate = true, alsoChange = () => {} } = {}) 
   root.classList.add('vt-panels');
   const vt = document.startViewTransition(apply);
   vt.ready.catch(() => {});   // skipped when toggled again mid-slide: fine, the new one takes over
-  vt.finished.finally(() => root.classList.remove('vt-panels'));
+  vt.finished.finally(() => { root.classList.remove('vt-panels'); state.layoutMovedAt = performance.now(); });
 }
 
 /** Pause (and show a picture of where the astronaut stopped).
@@ -156,9 +160,18 @@ function setPlayButton(playing) {
   $('playIcon').setAttribute('d', playing ? 'M4 2.5h3v11H4zM9 2.5h3v11H9z' : 'M4 2.5v11l9-5.5z');
 }
 
+/** Hold the walk clock until `promise` settles (e.g. the astronaut view is still being built),
+ *  so the astronaut doesn't walk on unseen. The walk carries on from where it was. */
+export function holdWalk(promise) {
+  play.holds++;
+  promise.catch(() => {}).finally(() => { play.holds--; play.last = performance.now(); });
+}
+// A frame can take long while the browser builds a view; never let one frame jump the walk ahead.
+const MAX_FRAME_S = 0.1;
+
 function tick(now) {
   if (!play.playing) return;
-  const dt = (now - play.last) / 1000;
+  const dt = play.holds ? 0 : Math.min(MAX_FRAME_S, (now - play.last) / 1000);
   play.last = now;
   play.t = Math.min(play.tl.total, play.t + dt / PLAY_SECONDS_PER_HOUR * playSpeed());
   if (play.t >= play.tl.total) play.playing = false;   // finished: render once more as stopped

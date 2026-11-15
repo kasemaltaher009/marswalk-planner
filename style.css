@@ -407,6 +407,7 @@ body.globe-intro :is(#btnPanels, .topctl, #wpbar, .viewdock) { display: none; }
 .summary > summary::-webkit-details-marker { display: none; }
 .summary > summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 4px; }
 .verdict { font-size: 40px; font-weight: 800; font-stretch: var(--cond); line-height: 1; color: var(--tone); }
+.verdict small { display: block; margin-top: 2px; font-size: 13px; font-weight: 700; font-stretch: var(--semi); letter-spacing: .02em; text-transform: uppercase; }
 .sum-line { color: var(--text); font-size: 14px; font-weight: 600; font-stretch: var(--semi); }
 .summary[open]:not(.tight) .sum-line { display: none; }   /* the numbers below say it (unless scrolled out of sight) */
 .sum-fold { width: 16px; height: 16px; margin-left: auto; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; rotate: 180deg; transition: rotate .2s; }
@@ -420,7 +421,14 @@ body.globe-intro :is(#btnPanels, .topctl, #wpbar, .viewdock) { display: none; }
 .poll .nogo .call { color: var(--nogo); }
 .poll small { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
 #statsBox { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .12); }
-body.panels-hidden .summary { display: none; transition: none; }   /* gone at once: the panels' slide animates it */
+body.walking .summary { display: none; transition: none; }   /* gone at once: the panels' slide animates it */
+/* panels hidden (not walking): just the verdict and "distance · time", in the same corner;
+   clicking it shows the panels again (main.js) */
+body.panels-hidden:not(.walking) .summary { width: auto; padding: 6px 12px; }
+body.panels-hidden:not(.walking) .summary > :not(summary),
+body.panels-hidden:not(.walking) .summary .sum-fold { display: none; }
+body.panels-hidden:not(.walking) .summary .sum-line { display: inline; }
+body.panels-hidden:not(.walking) .verdict { font-size: 26px; }
 .stage[data-globe="true"]:not([data-view="map"]) .summary { display: none; }   /* not over the Mars globe */
 
 .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 10px; margin: 0; }
@@ -589,7 +597,8 @@ body.panels-hidden .summary { display: none; transition: none; }   /* gone at on
 @media (max-width: 900px) {
   body { display: block; height: auto; }
   .topbar { grid-template-columns: 1fr auto; }
-  .status { grid-column: 1 / -1; text-align: left; }
+  /* one line: a long message is cut (the whole text is in its tooltip, errors also pop up over the view) */
+  .status { grid-column: 1 / -1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .layout { display: flex; flex-direction: column; }
   .stage { order: -1; height: 72vh; }
   body.panels-hidden .stage { height: 100vh; height: 100dvh; }   /* walk mode: the view fills the screen */
@@ -681,3 +690,26 @@ body.panels-hidden .summary { display: none; transition: none; }   /* gone at on
 
 /* the map layer buttons mean nothing on the Mars globe */
 .stage[data-globe="true"]:not([data-view="map"]) .toolbar { display: none; }
+
+/* ---------- phone width: keep the map visible between the cards ---------- */
+@media (max-width: 600px) {
+  /* the layer buttons first (they don't fit beside the legend card here, and under it they were
+     covered by the verdict and the waypoint bar), then Photo / Relief with a smaller legend card */
+  .toolbar .chips { order: -1; }
+  .legend { font-size: 10px; padding: 3px 6px; }
+  /* the verdict card fits beside the legend card, under the zoom buttons */
+  .summary, body.panels-hidden:not(.walking) .summary { width: min(200px, calc(100% - 175px)); }
+  body.panels-hidden .summary { top: 103px; }   /* panels hidden: the layer row is one row lower (57px), so is the card */
+  .verdict { font-size: 26px; }
+  .sum-line { font-size: 13px; }
+  /* waypoint bar: one short hint line, the points as numbered badges (× still removes one), options on one line */
+  .wpbar { padding: 6px 8px; gap: 4px; }
+  .wp-hint { font-size: 13px; }
+  .wp-row { padding-top: 4px; }
+  .points li { font-size: 0; }   /* just the badge: the label text goes, the badge's number stays */
+  .points .tag { font-size: 12px; }
+  .points .rm { font-size: 16px; }
+  .wp-btns button { padding: 4px 8px; }
+  .wp-opts { gap: 0 10px; }
+  .wp-opts .check { font-size: 12px; }
+}
